@@ -15,11 +15,17 @@ export interface Floating3DMenuProps {
   className?: string;
   /** minimum number of trays drawn (empty ones are shown as empty trays) */
   minSlots?: number;
+  /** 'grid': landing view, two icon-only cells per tray and the door stays open */
+  layout?: 'list' | 'grid';
+  /** a product is on show: door shut, needle still */
+  busy?: boolean;
+  /** landing view: set once to swing the door open; it then stays open */
+  doorOpen?: boolean;
 }
 
 const W = 300;         // printer width (px)
 const D = 190;         // printer depth (px)
-const SLOT = 66;       // height of one tray bay
+const SLOT_LIST = 66;       // height of one tray bay
 const HEAD = 84;       // printer head zone above the trays (gantry, toolhead, vent)
 const FOOT = 30;       // print bed zone below the trays
 const TRAY = 5;        // aluminium tray thickness
@@ -36,9 +42,11 @@ const face = (extra: CSSProperties): CSSProperties => ({ position: 'absolute', p
  * The menu is a 3D printer drawn as a real 3D box (front, right side and top faces) seen from a tilted angle.
  * Each option sits on its own aluminium tray inside the chamber; the focused one is lit white, the rest are dark.
  */
-export function Floating3DMenu({ items, activeIndex, onSelect, className = '', minSlots = 7 }: Floating3DMenuProps) {
+export function Floating3DMenu({ items, activeIndex, onSelect, className = '', minSlots = 7, layout = 'list', busy = false, doorOpen = false }: Floating3DMenuProps) {
+  const grid = layout === 'grid';
+  const SLOT = grid ? 88 : SLOT_LIST;
   const reduce = useReducedMotion() ?? false;
-  const slots = Math.max(minSlots, items.length);   // trays rendered (extra ones scroll)
+  const slots = grid ? Math.max(minSlots, Math.ceil(items.length / 2)) : Math.max(minSlots, items.length);   // trays rendered (extra ones scroll)
   const H = minSlots * (SLOT + TRAY) + TRAY + 62 + HEAD + FOOT;   // body height shows `minSlots` trays at once
   const scroller = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -49,9 +57,10 @@ export function Floating3DMenu({ items, activeIndex, onSelect, className = '', m
   const [open, setOpen] = useState(false);
   const [ready, setReady] = useState(false); // true only once the door has finished opening
   const closeTimer = useRef<number>(0);
-  const enter = () => { window.clearTimeout(closeTimer.current); setOpen(true); };
-  const leave = () => { window.clearTimeout(closeTimer.current); closeTimer.current = window.setTimeout(() => { setOpen(false); setReady(false); }, 350); };
+  const enter = () => { if (busy || grid) return; window.clearTimeout(closeTimer.current); setOpen(true); };
+  const leave = () => { if (grid) return; window.clearTimeout(closeTimer.current); closeTimer.current = window.setTimeout(() => { setOpen(false); setReady(false); }, 350); };
   useEffect(() => () => window.clearTimeout(closeTimer.current), []);
+  useEffect(() => { if (doorOpen) setOpen(true); }, [doorOpen]);
   const ref = useRef<HTMLDivElement>(null);
   const pick = (e: ReactPointerEvent) => {
     if (!ready) return;
@@ -73,7 +82,7 @@ export function Floating3DMenu({ items, activeIndex, onSelect, className = '', m
         style={{
           position: 'absolute', left: 0, top: filH + 14, width: W, height: H,
           transformStyle: 'preserve-3d', transformOrigin: `50% 40% ${-D / 2}px`, pointerEvents: 'none',
-          rotateY: 26, rotateX: -10,
+          rotateY: grid ? 14 : 26, rotateX: grid ? -7 : -10,
         }}
       >
         {/* ───── floor shadow, lying flat under the printer ───── */}
@@ -117,13 +126,19 @@ export function Floating3DMenu({ items, activeIndex, onSelect, className = '', m
               border: '1px solid #15171a', boxShadow: 'inset 0 0 26px rgba(0,0,0,.85), 0 0 0 1px rgba(255,255,255,.18)',
             }}>
               <Screws />
-              <PrinterHead reduce={reduce} />
+              <PrinterHead reduce={reduce || busy} still={busy} />
               <div ref={scroller} style={{ position: 'relative', zIndex: 1, flex: '1 1 0', minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', scrollbarWidth: 'none', pointerEvents: 'auto' }}>
               {Array.from({ length: slots }).map((_, i) => {
                 const it = items[i];
                 return (
                   <div key={i} style={{ position: 'relative', height: SLOT + TRAY }}>
-                    {it ? <Bay idx={i} item={it} lit={i === activeIndex} reduce={reduce} ready={ready} onSelect={() => onSelect(i)} /> : <div style={{ height: SLOT }} />}
+                    {grid
+                      ? <div style={{ display: 'flex', height: SLOT }}>
+                          {[0, 1].map(c => { const k = i * 2 + c, g = items[k]; return g
+                            ? <Bay key={k} idx={k} item={g} slot={SLOT} grid lit={k === activeIndex} reduce={reduce} ready={ready} onSelect={() => onSelect(k)} />
+                            : <div key={k} style={{ flex: 1 }} />; })}
+                        </div>
+                      : it ? <Bay idx={i} item={it} slot={SLOT} lit={i === activeIndex} reduce={reduce} ready={ready} onSelect={() => onSelect(i)} /> : <div style={{ height: SLOT }} />}
                     {/* tinted shelf plate: thin edges, a soft face */}
                     <div aria-hidden style={{
                       position: 'absolute', left: 6, right: 6, bottom: 0, height: TRAY, background: brushed, borderRadius: '1.5px 1.5px 2px 2px',
@@ -176,7 +191,7 @@ function Screws() {
 }
 
 /** Above the trays: gantry rails, a toolhead that slides side to side with its nozzle needle, a purge box and the hex vent. */
-function PrinterHead({ reduce }: { reduce: boolean }) {
+function PrinterHead({ reduce, still }: { reduce: boolean; still: boolean }) {
   return (
     <div aria-hidden style={{ position: 'relative', zIndex: 1, flex: `0 0 ${HEAD}px`, pointerEvents: 'none', overflow: 'hidden',
       borderBottom: '1px solid rgba(255,255,255,.12)', background: 'linear-gradient(180deg,#2a2c32,#17181c)' }}>
@@ -192,7 +207,7 @@ function PrinterHead({ reduce }: { reduce: boolean }) {
       {/* the toolhead, with its needle, sliding left and right along the rails */}
       <motion.div
         animate={reduce ? { left: '40%' } : { left: ['6%', '60%', '6%'] }}
-        transition={reduce ? INSTANT : { duration: 6, repeat: Infinity, ease: 'easeInOut' }}
+        transition={reduce ? (still ? { duration: 0.8, ease: 'easeOut' } : INSTANT) : { duration: 6, repeat: Infinity, ease: 'easeInOut' }}
         style={{ position: 'absolute', top: 5, width: 54, height: 36 }}>
         <span style={{ position: 'absolute', inset: 0, borderRadius: '8px 8px 5px 5px', background: 'linear-gradient(180deg,#8a8f98,#464a51)',
           boxShadow: '0 0 0 1px rgba(0,0,0,.6), 0 6px 7px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.55)' }} />
@@ -216,39 +231,45 @@ function PrintBed() {
   );
 }
 
-function Bay({ idx, item, lit, reduce, ready, onSelect }: { idx: number; ready: boolean; item: MenuItem; lit: boolean; reduce: boolean; onSelect: () => void }) {
+function Bay({ idx, item, lit: litProp, reduce, ready, onSelect, slot, grid = false }: { idx: number; ready: boolean; item: MenuItem; lit: boolean; reduce: boolean; onSelect: () => void; slot: number; grid?: boolean }) {
+  const [hv, setHv] = useState(false);
+  const lit = litProp || (grid && hv);
+  const img = grid ? 72 : 54;
   return (
     <motion.button
       type="button"
       aria-current={lit}
       data-bay={idx}
       aria-disabled={!ready}
+      aria-label={item.label}
+      onPointerEnter={() => setHv(true)} onPointerLeave={() => setHv(false)}
       onClick={() => { if (ready) onSelect(); }}
       className="group"
       style={{
-        position: 'relative', display: 'flex', alignItems: 'center', gap: 10, width: '100%', height: SLOT, padding: '0 14px 0 8px',
+        position: 'relative', display: 'flex', alignItems: 'center', justifyContent: grid ? 'center' : 'flex-start', gap: 10, width: grid ? '50%' : '100%', flex: grid ? 1 : undefined, height: slot, padding: grid ? 0 : '0 14px 0 8px',
         border: 0, background: 'transparent', cursor: ready ? 'pointer' : 'default', touchAction: 'manipulation', textAlign: 'left', outline: 'none', overflow: 'hidden', appearance: 'none',
       }}
     >
-      {/* chamber light: white when focused, off otherwise */}
+      {/* a soft light falling on the product: a small lamp at the top and a faint cone of light, kept inside the tray */}
       <span aria-hidden style={{
-        position: 'absolute', inset: 0, transition: 'opacity .5s', opacity: lit ? 1 : 0,
-        background: 'radial-gradient(120% 150% at 50% -30%, #ffffff 0%, rgba(255,255,255,.9) 40%, rgba(232,238,250,.55) 100%)',
+        position: 'absolute', left: '12%', right: '12%', top: 0, bottom: 4, transition: 'opacity .6s', opacity: lit ? 1 : 0,
+        clipPath: 'polygon(36% 0, 64% 0, 100% 100%, 0 100%)',
+        background: 'linear-gradient(180deg, rgba(255,255,255,.26) 0%, rgba(255,255,255,.07) 70%, rgba(255,255,255,0) 100%)',
       }} />
       <span aria-hidden style={{
-        position: 'absolute', left: 10, right: 10, top: 0, height: 3, borderRadius: '0 0 6px 6px', transition: 'all .5s',
-        background: lit ? '#fff' : 'rgba(255,255,255,.08)', boxShadow: lit ? '0 0 14px 5px rgba(255,255,255,.95)' : 'none',
+        position: 'absolute', left: '36%', right: '36%', top: 0, height: 2, borderRadius: '0 0 4px 4px', transition: 'all .6s',
+        background: lit ? '#fff' : 'rgba(255,255,255,.06)', boxShadow: lit ? '0 0 10px 2px rgba(255,255,255,.7)' : 'none',
       }} />
-      <span style={{ position: 'relative', width: 54, height: 54, flex: 'none', display: 'grid', placeItems: 'center',
-        transition: 'filter .5s, opacity .5s', filter: lit ? 'none' : 'brightness(.62) saturate(.75)', opacity: lit ? 1 : 0.92 }}>
-        <img src={item.image} alt="" draggable={false} style={{ width: 54, height: 54, objectFit: 'contain', filter: 'drop-shadow(0 5px 6px rgba(0,0,0,.45))' }} />
+      <span style={{ position: 'relative', width: img, height: img, flex: 'none', display: 'grid', placeItems: 'center',
+        transition: 'filter .5s, opacity .5s, transform .4s', transform: grid && hv ? 'scale(1.08)' : 'none', filter: lit || grid ? 'none' : 'brightness(.62) saturate(.75)', opacity: lit || grid ? 1 : 0.92 }}>
+        <img src={item.image} alt="" draggable={false} style={{ width: img, height: img, objectFit: 'contain', filter: 'drop-shadow(0 5px 6px rgba(0,0,0,.45))' }} />
       </span>
-      <span style={{
+      {!grid && <span style={{
         position: 'relative', fontSize: 11.5, fontWeight: 500, letterSpacing: '.03em', lineHeight: 1.25, transition: 'color .5s',
-        color: lit ? '#101216' : 'rgba(255,255,255,.34)',
+        color: lit ? 'rgba(255,255,255,.92)' : 'rgba(255,255,255,.34)',
       }}>
         {item.label}
-      </span>
+      </span>}
     </motion.button>
   );
 }

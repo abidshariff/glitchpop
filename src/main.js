@@ -1,3 +1,4 @@
+import { buildFloaters } from './floaters.js';
 import * as THREE from 'three';
 import { TOYS, COLOR_NAMES } from './toys.js';
 import { mountMenu } from './menu-root.tsx';
@@ -5,23 +6,7 @@ import { mountMenu } from './menu-root.tsx';
 const params = new URLSearchParams(location.search);
 const FROZEN = params.has('t') ? Number(params.get('t')) : null;
 const TITLE_LIFT = 52;
-let gliding = null;
-/** Slow ease-in-out scroll to a page. Scroll-snap and CSS smooth-scroll are paused while it runs. */
-function glide(page, ms = 1900) {
-  const from = scrollY, to = page * innerHeight, root = document.documentElement;
-  if (Math.abs(to - from) < 2) return;
-  cancelAnimationFrame(gliding); root.style.scrollSnapType = 'none'; root.style.scrollBehavior = 'auto';
-  const t0 = performance.now();
-  const stop = () => { cancelAnimationFrame(gliding); gliding = null; root.style.scrollSnapType = ''; root.style.scrollBehavior = ''; removeEventListener('wheel', stop); removeEventListener('touchstart', stop); };
-  addEventListener('wheel', stop, { passive: true, once: true }); addEventListener('touchstart', stop, { passive: true, once: true });
-  const step = now => {
-    const k = Math.min(1, (now - t0) / ms), e = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
-    scrollTo({ top: from + (to - from) * e, behavior: 'instant' });
-    if (k < 1) gliding = requestAnimationFrame(step); else stop();
-  };
-  gliding = requestAnimationFrame(step);
-}
-const N = TOYS.length, PAGE_DY = 520;
+const N = TOYS.length;
 
 const canvas = document.getElementById('gl');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: true });
@@ -34,10 +19,6 @@ scene.add(new THREE.AmbientLight(0xffffff, 0.9), new THREE.HemisphereLight(0xfff
 for (const [c, i, x, y, z] of [[0xffffff, 1.1, 150, 250, 300], [0xffffff, 0.7, -250, 50, 300], [0xffffff, 0.5, -250, 100, -200]]) {
   const l = new THREE.DirectionalLight(c, i); l.position.set(x, y, z); scene.add(l);
 }
-
-// one scroll page per toy
-const pagesEl = document.getElementById('pages');
-TOYS.forEach(() => { const d = document.createElement('section'); d.className = 'page'; pagesEl.appendChild(d); });
 
 // ── build plate: small, pale, quiet ──
 const PLATE = 150, T = 5;
@@ -83,7 +64,7 @@ const setOpacity = (mats, o) => mats.forEach(m => { m.transparent = o < 0.999; m
 const items = [];
 await Promise.all(TOYS.map(async (meta, i) => {
   const toy = await meta.build();
-  const holder = new THREE.Group(); holder.position.y = -i * PAGE_DY;
+  const holder = new THREE.Group(); holder.visible = false;
   const plate = makePlate(); holder.add(plate);
   toy.root.scale.setScalar(meta.plateHeight / toy.natural);
   holder.add(toy.root); scene.add(holder);
@@ -108,17 +89,26 @@ function renderSwatches(i) {
   });
 }
 
-// ── scroll → hero ──
-let focus = -1;
-const progress = () => scrollY / innerHeight;
-let cur = Math.min(N - 1, Math.max(0, Number(params.get('i') ?? progress())));
-if (params.has('i')) scrollTo({ top: innerHeight * Number(params.get('i')), behavior: 'instant' });
-function setFocus(i) {
-  if (i === focus) return; focus = i;
-  if (items[i]) { items[i].t0 = clock ? clock.elapsedTime : 0; items[i].lastK = 0; }  // restart this toy's animation from the beginning
-  infoEl.classList.add('out'); document.getElementById('buy').classList.add('out'); moveInd();
-  setTimeout(() => { renderSwatches(focus); showInfo(); window.__showBuy?.(); infoEl.classList.remove('out'); }, 220);
+// ── landing ⇄ hero: pick an icon in the printer → the printer goes out of focus, the product comes out of it and plays until the visitor clicks away ──
+let focus = -1;          // product picked (-1 = landing)
+let shown = -1;          // product currently drawn (stays set while it goes back into the printer)
+let prog = 0;            // 0 = inside the printer … 1 = presented
+let uiOn = false, pickedAt = 0;
+const EMERGE_S = 1.5, ease = k => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2);
+const menuHost = document.getElementById('menu-root'), chooseEl = document.getElementById('choose');
+const setUI = on => [document.getElementById('info'), document.getElementById('swatches'), document.getElementById('buy')].forEach(e => e.classList.toggle('out', !on));
+function selectToy(i) {
+  if (focus >= 0 || prog > 0) return;
+  focus = shown = i; pickedAt = performance.now(); uiOn = false; items[i].t0 = clock.elapsedTime;   // animation starts from its first frame as it comes out
+  document.getElementById('name').textContent = TOYS[i].name; renderSwatches(i); showBuy(); setUI(false);
 }
+function closeToy() { if (focus < 0) return; focus = -1; uiOn = false; setUI(false); }
+document.addEventListener('click', e => {
+  if (focus < 0 || performance.now() - pickedAt < 500) return;
+  if (e.target.closest('#info,#swatches,#buy,#cart,#drawer,#scrim,.brand,#menu-root')) return;
+  closeToy();
+});
+addEventListener('keydown', e => { if (e.key === 'Escape' && focus >= 0 && !drawer.classList.contains('on')) closeToy(); });
 
 // ── floating glass dock: little picture of each toy ──
 async function makeThumb(meta) {
@@ -135,28 +125,16 @@ async function makeThumb(meta) {
   r.render(sc, cam); const url = r.domElement.toDataURL('image/png'); r.dispose(); r.forceContextLoss(); return url;
 }
 const thumbs = await Promise.all(TOYS.map(makeThumb));
-const menu = mountMenu(document.getElementById('menu-root'),
-  TOYS.map((m, i) => ({ id: m.id, label: m.name, image: thumbs[i], accent: items[i].toy.variants[0].accent })),
-  i => {  // menu pick: go straight to that product (no sweep through the ones in between)
-    cancelAnimationFrame(gliding); const root = document.documentElement;
-    root.style.scrollSnapType = 'none'; root.style.scrollBehavior = 'auto';
-    scrollTo({ top: i * innerHeight, behavior: 'instant' }); cur = i;
-    requestAnimationFrame(() => { root.style.scrollSnapType = ''; root.style.scrollBehavior = ''; });
-  });
-function moveInd() { menu.setActive(focus); }
+const menu = mountMenu(menuHost, TOYS.map((m, i) => ({ id: m.id, label: m.name, image: thumbs[i], accent: items[i].toy.variants[0].accent })), selectToy);
+const placeChoose = () => { chooseEl.style.top = menuHost.getBoundingClientRect().bottom + 30 + 'px'; };
+menuHost.addEventListener('fit', placeChoose); new ResizeObserver(placeChoose).observe(menuHost); placeChoose();
 const infoEl = document.getElementById('info');
-function showInfo() {
-  const m = TOYS[focus];
-  document.getElementById('name').textContent = m.name;
-}
-
 
 function resize() {
-  renderer.setSize(innerWidth, innerHeight, false); cam.aspect = innerWidth / innerHeight; cam.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight, false); cam.aspect = innerWidth / innerHeight; cam.updateProjectionMatrix(); placeChoose();
 }
-addEventListener('resize', () => { resize(); moveInd(); }); resize();
-
-setFocus(Math.round(cur)); moveInd(); showInfo(); infoEl.classList.remove('out');
+addEventListener('resize', resize); resize();
+setUI(false);
 // ── shop: price, quantity and add to cart ──
 const buyEl = document.getElementById('buy'), qval = document.getElementById('qval'), cartEl = document.getElementById('cart');
 const qtyOf = TOYS.map(() => 1);
@@ -164,10 +142,10 @@ const cart = {};                                   // one line per toy AND colou
 const linesOf = () => Object.entries(cart).filter(([, q]) => q > 0).map(([k, q]) => { const [i, v] = k.split(':').map(Number); return { k, i, v, q }; });
 const money = n => '$' + n;
 function showBuy() {
+  if (focus < 0) return;
   const m = TOYS[focus];
   document.getElementById('price').innerHTML = `<span class="cur">$</span>${m.price}`;
   qval.textContent = qtyOf[focus]; document.getElementById('qminus').disabled = qtyOf[focus] <= 1;
-  buyEl.classList.remove('out');
 }
 function showCart() {
   const L = linesOf(), n = L.reduce((a, l) => a + l.q, 0), total = L.reduce((a, l) => a + l.q * TOYS[l.i].price, 0);
@@ -231,195 +209,71 @@ document.getElementById('lines').onclick = e => {
   cart[b.dataset.k] = Math.max(0, cart[b.dataset.k] + +b.dataset.d); showCart(); renderDrawer();
 };
 var clock = new THREE.Clock();
+const floaters = buildFloaters(); scene.add(floaters.group);
+let started = false, startedAt = 0;
+menuHost.style.visibility = 'hidden';
+function startTour() {
+  if (started) return; started = true; startedAt = clock.elapsedTime;
+  document.getElementById('twel').classList.remove('on'); document.body.classList.remove('intro');
+  menuHost.style.visibility = 'visible';
+  const base = menuHost.style.transform;
+  menuHost.animate([{ opacity: 0, transform: `${base} translateY(40px) scale(.9)` }, { opacity: 1, transform: base }], { duration: 1100, delay: 500, easing: 'cubic-bezier(.22,1,.36,1)', fill: 'backwards' });
+  setTimeout(() => menu.setDoorOpen(true), 1700);   // the door swings open once, then stays open
+}
+document.getElementById('tstart').onclick = startTour;
 function frame() {
   const dt = Math.min(clock.getDelta(), 0.05), s = FROZEN ?? clock.elapsedTime;
-  cur += (progress() - cur) * (FROZEN !== null ? 1 : 1 - Math.exp(-dt * 3.5));
-  setFocus(Math.min(N - 1, Math.max(0, Math.round(cur))));
+  const goal = focus >= 0 ? 1 : 0;
+  prog += Math.sign(goal - prog) * Math.min(Math.abs(goal - prog), dt / EMERGE_S);
+  if (prog === 0 && focus < 0) shown = -1;
+  const u = ease(prog);
+  if (focus >= 0 && prog >= 1 && !uiOn) { uiOn = true; setUI(true); }
+  const busy = focus >= 0 || prog > 0;
+  menuHost.style.pointerEvents = busy || !started ? 'none' : ''; menu.setBusy(busy);
+  menuHost.style.filter = u > 0.001 ? `blur(${(u * 9).toFixed(2)}px) brightness(${(1 - 0.14 * u).toFixed(3)})` : '';
+  const introK = started ? Math.min(1, Math.max(0, (clock.elapsedTime - startedAt - 1.7) / 0.8)) : 0;
+  chooseEl.style.opacity = introK * (1 - Math.min(1, u * 2.5));
   const kc = 1 - Math.exp(-dt * 10);
   items.forEach((it, i) => {
-    const d = Math.abs(cur - i);
-    setOpacity(it.toy.mats, Math.max(0, 1 - d * 1.6));
-    it.holder.visible = d < 1.2;
-    if (!it.holder.visible) return;
+    it.holder.visible = i === shown;
+    if (i !== shown) return;
+    setOpacity(it.toy.mats, Math.min(1, u * 3));
     for (const [role, col] of Object.entries(it.targets)) it.toy.roles[role].color.lerp(col, kc);
     it.plate.userData.glow.material.color.lerp(it.glow, kc);
-    {
-      // aura: a soft halo that swells and brightens while the page glides, then settles
-      const g = it.plate.userData.glow, move = Math.min(1, Math.abs(progress() - cur) * 2.2);
-      it.aura = (it.aura ?? 0) + (move - (it.aura ?? 0)) * (1 - Math.exp(-dt * 4));
-      g.material.opacity = 0.32 + 0.4 * it.aura; g.scale.setScalar(1 + 0.45 * it.aura);
-    }
+    it.plate.userData.glow.material.opacity = 0.32 * Math.min(1, u * 1.5);
     it.toy.update(FROZEN !== null ? s : s - (it.t0 ?? 0), true);
   });
-  // camera glides down the stack of plates; each plate is one page
-  const y = -cur * PAGE_DY, narrow = cam.aspect < 1;
-  // Layout: the title's top lines up with the top of the printer; the hero fits between the title and the printer's bottom.
-  const printerEl = document.querySelector('#menu-root nav');
-  const pr = printerEl ? printerEl.getBoundingClientRect() : { top: 0, bottom: 0, height: 0 };
-  if (pr.height > 0) {
-    const titleTop = Math.max(70, pr.top - TITLE_LIFT);   // title rides a little above the printer's top edge
+  if (shown >= 0) {
+    const it = items[shown], H = it.meta.plateHeight, narrow = cam.aspect < 1;
+    // hero fits between the title and the buy bar, centred on the page
+    const titleTop = Math.max(92, innerHeight * 0.115);
     infoEl.style.top = titleTop + 'px';
-    const titleBottom = titleTop + infoEl.offsetHeight;
-    const R0 = titleBottom + 26, R1 = pr.bottom - 96;   // leave room for the buy bar under the hero
-    const i0 = Math.min(N - 1, Math.max(0, Math.floor(cur))), i1 = Math.min(N - 1, i0 + 1), f = cur - i0;
-    const H = TOYS[i0].plateHeight * (1 - f) + TOYS[i1].plateHeight * f;
-    cam.position.set(0, y + (narrow ? 190 : 120), narrow ? 640 : 430); cam.lookAt(0, y + 62, 0);
-    const proj = yy => (1 - new THREE.Vector3(0, y + yy, 0).project(cam).y) / 2 * innerHeight;
-    const offX = -innerWidth * 0.07;
-    cam.zoom = 1; cam.setViewOffset(innerWidth, innerHeight, offX, 0, innerWidth, innerHeight); cam.updateProjectionMatrix();
+    const R0 = titleTop + infoEl.offsetHeight + 26, R1 = innerHeight - 112;
+    cam.position.set(0, narrow ? 190 : 120, narrow ? 640 : 430); cam.lookAt(0, 62, 0);
+    const proj = yy => (1 - new THREE.Vector3(0, yy, 0).project(cam).y) / 2 * innerHeight;
+    cam.zoom = 1; cam.clearViewOffset(); cam.updateProjectionMatrix();
     const span = proj(0) - proj(H);
-    cam.zoom = Math.max(0.3, Math.min(2, (R1 - R0) / span)); cam.updateProjectionMatrix();
+    cam.zoom = Math.max(0.3, Math.min(2, (R1 - R0) * 0.88 / span)); cam.updateProjectionMatrix();
     const mid = (proj(0) + proj(H)) / 2;
-    cam.setViewOffset(innerWidth, innerHeight, offX, -((R0 + R1) / 2 - mid), innerWidth, innerHeight);
+    // it comes out of the printer's middle and settles into the hero position
+    const target = innerHeight * 0.47 + ((R0 + R1) / 2 - innerHeight * 0.47) * u;
+    cam.setViewOffset(innerWidth, innerHeight, 0, -(target - mid), innerWidth, innerHeight);
+    const sc = 0.28 + 0.72 * u; it.holder.scale.setScalar(sc); it.holder.position.y = H * 0.5 * (1 - sc);
     swEl.style.top = (R0 + R1) / 2 + 'px';
-    // buy bar sits just under the hero's actual base on screen (front edge, with perspective), so it never overlaps the animation
-    const front = new THREE.Vector3(0, y, 22).project(cam);
-    const baseY = (1 - front.y) / 2 * innerHeight;
-    buyEl.style.top = Math.min(innerHeight - 74, Math.max(R0 + 120, baseY + 22)) + 'px';
-  }
-  renderer.render(scene, cam);
+    const front = new THREE.Vector3(0, 0, 22).project(cam);
+    buyEl.style.top = Math.min(innerHeight - 74, Math.max(R0 + 120, (1 - front.y) / 2 * innerHeight + 22)) + 'px';
+    renderer.render(scene, cam);
+  } else if (floaters.group.visible) {
+    // welcome: a few toys drift about behind the logo; they shrink away once the tour starts
+    const k = started ? Math.max(0, 1 - (clock.elapsedTime - startedAt) / 1.1) : 1;
+    floaters.group.scale.setScalar(Math.max(0.0001, ease(k))); if (started && k <= 0) floaters.group.visible = false;
+    floaters.update(s);
+    cam.position.set(0, 0, 430); cam.lookAt(0, 0, 0); cam.zoom = 1; cam.clearViewOffset(); cam.updateProjectionMatrix();
+    renderer.render(scene, cam);
+  } else renderer.clear();
   requestAnimationFrame(frame);
 }
 frame();
 window.__ready = true;
+if (params.has('i')) { startTour(); setTimeout(() => selectToy(Number(params.get('i'))), 3200); }
 
-// ── guided tour: a big floating box. Each product slides in, plays one full animation loop while its colours change on their own,
-//    then slides out and the next one slides in. It only opens when the visitor presses the button. ──
-const tourBtn = document.getElementById('tour'), tourBox = document.getElementById('tourbox'), tourScrim = document.getElementById('tourscrim');
-const tCanvas = document.getElementById('tourcv');
-let tRenderer2 = null, tScene2 = null, tRenderer = null, tScene = null, tCam = null, tToys = null, tRaf = 0, tState = null;
-const IN_S = 1.1, OUT_S = 0.9;                       // slide durations (seconds)
-const easeIO = k => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2);
-
-function addLights(sc) {
-  sc.add(new THREE.AmbientLight(0xffffff, 0.9), new THREE.HemisphereLight(0xffffff, 0xffffff, 0.6));
-  for (const [i, x, y, z] of [[1.1, 150, 250, 300], [0.7, -250, 50, 300], [0.5, -250, 100, -200]]) { const l = new THREE.DirectionalLight(0xffffff, i); l.position.set(x, y, z); sc.add(l); }
-}
-let tPrinter = null, tDoor = null, tSteps = [];
-function buildPrinter() {
-  const g = new THREE.Group(), W = 118, H = 156, D = 100, t = 7;
-  const dark = new THREE.MeshStandardMaterial({ color: 0x2b2f3a, metalness: 0.55, roughness: 0.38 });
-  const alu = new THREE.MeshStandardMaterial({ color: 0xc9ced8, metalness: 0.8, roughness: 0.3 });
-  const wall = new THREE.MeshStandardMaterial({ color: 0xe9ecf2, roughness: 0.9, emissive: 0x8a909c, emissiveIntensity: 0.35 });
-  const led = new THREE.MeshBasicMaterial({ color: 0xffffff });
-  const box = (w, h, d, m, x, y, z, par = g) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); par.add(b); return b; };
-  box(W, t, D, alu, 0, H / 2 - t / 2, 0);
-  box(W, t + 6, D, dark, 0, -H / 2 + (t + 6) / 2, 0);
-  box(t, H, D, dark, -W / 2 + t / 2, 0, 0); box(t, H, D, dark, W / 2 - t / 2, 0, 0);
-  box(W, H, 3, wall, 0, 0, -D / 2 + 1.5);
-  box(W - 2 * t - 8, 3, D - 28, alu, 0, -22, 0);                   // build plate
-  box(W - 2 * t, 1.5, 3, led, 0, H / 2 - t - 2, D / 2 - 6);        // light strip
-  const lamp = new THREE.PointLight(0xffffff, 1.4, 260); lamp.position.set(0, 20, 30); g.add(lamp);
-  // brand strip
-  const cv = document.createElement('canvas'); cv.width = 512; cv.height = 64; const c = cv.getContext('2d');
-  c.fillStyle = '#fff'; c.font = '600 34px Helvetica, Arial, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
-  if ('letterSpacing' in c) c.letterSpacing = '8px'; c.fillText('CREALITY 3D', 256, 34);
-  const tx = new THREE.CanvasTexture(cv); tx.colorSpace = THREE.SRGBColorSpace;
-  const lab = new THREE.Mesh(new THREE.PlaneGeometry(64, 8), new THREE.MeshBasicMaterial({ map: tx, transparent: true }));
-  lab.position.set(0, -H / 2 + 6, D / 2 + 0.3); g.add(lab);
-  // hinged glass door (left hinge)
-  const door = new THREE.Group(); door.position.set(-W / 2, 0, D / 2 + 1);
-  const glass = new THREE.Mesh(new THREE.BoxGeometry(W - 4, H - 22, 1.4), new THREE.MeshStandardMaterial({ color: 0x8d99ad, transparent: true, opacity: 0.26, metalness: 0.2, roughness: 0.1, depthWrite: false }));
-  glass.position.set(W / 2, 0, 0); door.add(glass);
-  box(W, 3, 3, alu, W / 2, (H - 22) / 2, 0, door); box(W, 3, 3, alu, W / 2, -(H - 22) / 2, 0, door);
-  box(3, H - 22, 3, alu, 0, 0, 0, door); box(3, H - 22, 3, alu, W, 0, 0, door);
-  box(3, 34, 6, alu, W - 12, 0, 4, door);
-  g.add(door); tDoor = door;
-  return g;
-}
-async function ensureTour() {
-  if (tRenderer) return;
-  tRenderer = new THREE.WebGLRenderer({ canvas: tCanvas, antialias: true, alpha: true });
-  tRenderer.setPixelRatio(Math.min(devicePixelRatio, 2)); tRenderer.outputColorSpace = THREE.SRGBColorSpace; tRenderer.toneMapping = THREE.NoToneMapping;
-  tRenderer.setClearColor(0x000000, 0);
-  tScene = new THREE.Scene(); tCam = new THREE.PerspectiveCamera(30, 1, 1, 4000);
-  addLights(tScene);
-  // the printer lives on its own canvas behind the products so it can be blurred (out of focus) while a product presents itself
-  tRenderer2 = new THREE.WebGLRenderer({ canvas: document.getElementById('tourcv2'), antialias: true, alpha: true });
-  tRenderer2.setPixelRatio(Math.min(devicePixelRatio, 2)); tRenderer2.outputColorSpace = THREE.SRGBColorSpace; tRenderer2.toneMapping = THREE.NoToneMapping; tRenderer2.setClearColor(0x000000, 0);
-  tScene2 = new THREE.Scene(); addLights(tScene2);
-  tPrinter = buildPrinter(); tPrinter.visible = false; tScene2.add(tPrinter);
-  tToys = await Promise.all(TOYS.map(async meta => {
-    const toy = await meta.build();
-    const sc = (meta.plateHeight * 1.08) / toy.natural;
-    toy.root.scale.setScalar(sc); toy.root.position.y = -(meta.plateHeight * 1.08) / 2;
-    const holder = new THREE.Group(); holder.add(toy.root); holder.visible = false; tScene.add(holder);
-    return { meta, toy, holder, col: toy.variants.map(v => Object.fromEntries(Object.entries(v.colors).map(([k, h]) => [k, new THREE.Color(h)]))) };
-  }));
-}
-function tResize() {
-  if (!tRenderer) return;
-  const w = tCanvas.clientWidth, h = tCanvas.clientHeight; if (!w || !h) return;
-  tRenderer.setSize(w, h, false); tRenderer2.setSize(w, h, false); tCam.aspect = w / h; tCam.updateProjectionMatrix();
-  tCam.position.set(0, 0, 340 * Math.max(1, 1.15 / tCam.aspect)); tCam.lookAt(0, 0, 0);
-}
-function tourDots(on = -1) { document.getElementById('tdots').innerHTML = TOYS.map((_, i) => `<i class="${i === on ? 'on' : ''}"></i>`).join(''); }
-// timeline: welcome → printer appears → door opens → (product comes out → plays → goes back) × products → door closes
-const OUT_D = 1.4, BACK_D = 1.2;
-function buildSteps() {
-  const s = [{ k: 'welcome', d: Infinity }, { k: 'printer', d: 1.6 }, { k: 'open', d: 1.5 }];
-  TOYS.forEach((m, i) => s.push({ k: 'out', d: OUT_D, i }, { k: 'play', d: m.duration, i }, { k: 'back', d: BACK_D, i }));
-  s.push({ k: 'close', d: 1.5 }, { k: 'end', d: 0.9 });
-  return s;
-}
-const twel = document.getElementById('twel'), ttBox = document.querySelector('#tourbox .tt');
-function enterStep(st) {
-  twel.classList.toggle('on', st.k === 'welcome');
-  tPrinter.visible = st.k !== 'welcome';
-  tToys.forEach((t, k) => { t.holder.visible = st.i === k; });
-  if (st.k === 'out') {
-    const T = tToys[st.i]; for (const [r, c] of Object.entries(T.col[0])) T.toy.roles[r].color.copy(c);
-    document.getElementById('ttitle').textContent = T.meta.name; ttBox.classList.add('on'); tourDots(st.i); tState.v = -1;
-  }
-  if (st.k === 'back') ttBox.classList.remove('on');
-  if (st.k === 'close') tourDots(-1);
-}
-const backOut = k => { const c = 1.7; return 1 + (c + 1) * Math.pow(k - 1, 3) + c * Math.pow(k - 1, 2); };
-function tourFrame() {
-  tRaf = requestAnimationFrame(tourFrame);
-  if (!tState) return;
-  const now = performance.now() / 1000, dt = Math.min(0.05, now - (tState.last ?? now)); tState.last = now;
-  let st = tSteps[tState.n];
-  while (now - tState.t0 >= st.d) {
-    tState.t0 += st.d; tState.n++;
-    if (tState.n >= tSteps.length) { closeTour(); return; }
-    st = tSteps[tState.n]; enterStep(st);
-  }
-  const el = now - tState.t0, k = Math.min(1, el / st.d), n = tState.n, last = tSteps.length - 2;
-  const door = n < 2 ? 0 : n === 2 ? easeIO(k) : n < last ? 1 : n === last ? 1 - easeIO(k) : 0;
-  tDoor.rotation.y = -1.75 * door;
-  const u = st.k === 'out' ? easeIO(k) : st.k === 'play' ? 1 : st.k === 'back' ? 1 - easeIO(k) : 0;
-  const ps = st.k === 'printer' ? Math.max(0.001, backOut(k)) : n < 1 ? 0.001 : 1;
-  tPrinter.scale.setScalar(ps * 0.82); tPrinter.position.set(0, 0, -260 * u);
-  if (st.i !== undefined) {
-    const T = tToys[st.i], D = T.meta.duration;
-    T.holder.scale.setScalar(0.28 + 0.72 * u); T.holder.position.set(0, 0, -6 * (1 - u));
-    const tt = st.k === 'out' ? el : st.k === 'play' ? OUT_D + el : OUT_D + D + el;
-    T.toy.update(tt, true);
-    const nv = T.toy.variants.length, vi = Math.min(nv - 1, Math.floor(Math.min(tt, OUT_D + D - 0.01) / ((OUT_D + D) / nv)));
-    const kk = 1 - Math.exp(-dt * 5);
-    for (const [role, col] of Object.entries(T.col[vi])) T.toy.roles[role].color.lerp(col, kk);
-  }
-  const cv2 = tRenderer2.domElement; cv2.style.filter = u > 0.001 ? `blur(${(u * 9).toFixed(2)}px)` : ''; cv2.style.opacity = 1 - 0.25 * u;
-  tRenderer2.render(tScene2, tCam); tRenderer.render(tScene, tCam);
-}
-async function openTour() {
-  if (tState) return;
-  tourBtn.disabled = true; tourBtn.querySelector('span').textContent = 'Loading…';
-  await ensureTour();
-  tourBtn.disabled = false; tourBtn.querySelector('span').textContent = 'Take the tour';
-  tourBox.classList.add('on'); tourScrim.classList.add('on'); tourBox.setAttribute('aria-hidden', 'false'); document.documentElement.style.overflow = 'hidden';
-  tSteps = buildSteps(); tResize(); tourDots(-1);
-  tState = { n: 0, t0: performance.now() / 1000, v: -1 }; enterStep(tSteps[0]);
-  cancelAnimationFrame(tRaf); tourFrame(); document.getElementById('tclose').focus();
-}
-function closeTour() {
-  tState = null; cancelAnimationFrame(tRaf); twel.classList.remove('on'); ttBox.classList.remove('on');
-  tourBox.classList.remove('on'); tourScrim.classList.remove('on'); tourBox.setAttribute('aria-hidden', 'true'); document.documentElement.style.overflow = '';
-  tourBtn.focus();
-}
-tourBtn.onclick = openTour;
-document.getElementById('tstart').onclick = () => { if (tState && tState.n === 0) { tSteps[0].d = 0; tState.t0 = performance.now() / 1000; } };
-document.getElementById('tclose').onclick = closeTour; tourScrim.onclick = closeTour;
-addEventListener('keydown', e => { if (e.key === 'Escape' && tState) closeTour(); });
-addEventListener('resize', tResize);
