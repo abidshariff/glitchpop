@@ -408,5 +408,5 @@ export const TOYS = [
     build: buildDonut, duration: 10, price: 5, plateHeight: 120, demoHeight: 110, thumb: { cy: 67, h: 112, t: 1 } },
   { id: 'spiral', name: 'Conoidal Spiral Fidget', short: 'Spiral Fidget',
     tag: '', blurb: '',
-    build: buildSpiral, duration: 12, price: 8, plateHeight: 130, demoHeight: 110, thumb: { cy: 39, h: 80, t: 0 } },
+    build: buildSpiral, duration: 12, price: 5, plateHeight: 130, demoHeight: 110, thumb: { cy: 39, h: 80, t: 0 } },
 ];
