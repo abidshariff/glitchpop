@@ -572,12 +572,46 @@ async function buildBird() {
   };
 }
 
+async function buildPass() {
+  // Two twisted hourglass pieces: the inner one is slightly smaller and screws up out through the slots of the outer one,
+  // which looks impossible. Both are the same shape, so moving it along the axis while turning it keeps it in the slots.
+  const [go, gi] = await Promise.all([loadGeometry('pt_outer'), loadGeometry('pt_inner')]);
+  const BK = 0x17171c, WH = 0xf4f4f4;
+  const outer = mesh(go, BK, 0.45), inner = mesh(gi, WH, 0.45);
+  outer.position.y = 30; inner.position.y = 30;
+  const slide = new THREE.Group(); slide.add(inner);
+  const model = new THREE.Group(); model.add(outer, slide);
+  const spin = new THREE.Group(); spin.add(model);
+  const root = new THREE.Group(); root.add(spin);
+  const css = n => '#' + n.toString(16).padStart(6, '0');
+  const v = (a, b, accent) => ({ accent, swatch: a === b ? [css(a)] : [css(a), css(b)], colors: { outer: a, inner: b } });
+  const K = THREE.MathUtils.degToRad(1.62) * PASS_DIR;     // the slots twist about 1.6 degrees per mm of height
+  const U = 56, LOOP_S = 12;
+  const sm = x => { x = Math.min(1, Math.max(0, x)); return x * x * (3 - 2 * x); };
+  return {
+    root, spin, mats: [outer.material, inner.material],
+    roles: { outer: outer.material, inner: inner.material },
+    swatchShape: 'wide',
+    variants: [v(BK, WH, '#c9cfdc'), v(BK, BK, '#8a8f9c'), v(WH, WH, '#c9cfdc')],
+    natural: 120, anim: 120, animCentre: 60,
+    update(s, animated) {
+      const t = animated ? ((s % LOOP_S) + LOOP_S) % LOOP_S : 0;
+      // nested -> the inner piece screws up and out through the slots -> hangs in the air turning -> screws back in
+      const up = sm((t - 0.8) / 3.4) - sm((t - 7.4) / 3.4);
+      slide.position.y = U * up; slide.rotation.y = K * U * up;
+      spin.rotation.y = animated ? 0.4 + 0.25 * Math.sin(s * 2 * Math.PI / LOOP_S) : 0.4;
+    },
+  };
+}
+const PASS_DIR = 1;
+
 // Names shown in the cart for each colour option (same order as the swatch buttons)
 export const COLOR_NAMES = {
   wand: ['Black & Green', 'Black & White', 'White & Black'],
   egg: ['Green', 'Pink', 'Red', 'White'],
   star: ['Red', 'Orange', 'Green'],
   donut: ['Orange', 'Pink', 'Green', 'Brown'],
+  pass: ['Black & White', 'Black', 'White'],
   bird: ['Yellow', 'Pink', 'Red'],
   snake: ['Pink', 'Blue'],
   dino: ['Green & Blue', 'Red & Black', 'Green & White'],
@@ -609,4 +643,7 @@ export const TOYS = [
   { id: 'bird', name: 'Balancing Bird', short: 'Balancing Bird',
     tag: '', blurb: '',
     build: buildBird, duration: 12, price: 3, plateHeight: 128, demoHeight: 110, thumb: { cy: 98, h: 112, t: 0 } },
+  { id: 'pass', name: 'Impossible Passthrough', short: 'Passthrough',
+    tag: '', blurb: '',
+    build: buildPass, duration: 12, price: 5, plateHeight: 126, demoHeight: 110, thumb: { cy: 30, h: 76, t: 0 } },
 ];

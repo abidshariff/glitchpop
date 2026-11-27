@@ -516,5 +516,15 @@
   "file": "bird_stem.bin",
   "vertices": 42389,
   "indices": 254322
+ },
+ "pt_outer": {
+  "file": "pt_outer.bin",
+  "vertices": 45149,
+  "indices": 270990
+ },
+ "pt_inner": {
+  "file": "pt_inner.bin",
+  "vertices": 43192,
+  "indices": 259140
  }
 }
