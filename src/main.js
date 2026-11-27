@@ -278,7 +278,10 @@ function frame() {
     // hero fits between the title and the buy bar, centred on the page
     const titleTop = Math.max(92, innerHeight * 0.115);
     infoEl.style.top = titleTop + 'px';
-    const R0 = titleTop + infoEl.offsetHeight + 26, R1 = innerHeight - 112;
+    // small / portrait screens: colours sit in a row above the price bar instead of down the side, so nothing can overlap
+    const rowUI = innerWidth < 900 || innerHeight < 620;
+    const BUY_TOP = innerHeight - 84, SW_TOP = BUY_TOP - 62;
+    const R0 = titleTop + infoEl.offsetHeight + 26, R1 = rowUI ? SW_TOP - 18 : innerHeight - 112;
     cam.position.set(0, narrow ? 190 : 120, narrow ? 640 : 430); cam.lookAt(0, 62, 0);
     const proj = yy => (1 - new THREE.Vector3(0, yy, 0).project(cam).y) / 2 * innerHeight;
     cam.zoom = 1; cam.clearViewOffset(); cam.updateProjectionMatrix();
@@ -289,9 +292,10 @@ function frame() {
     const target = innerHeight * 0.47 + ((R0 + R1) / 2 - innerHeight * 0.47) * u;
     cam.setViewOffset(innerWidth, innerHeight, 0, -(target - mid), innerWidth, innerHeight);
     const sc = 0.28 + 0.72 * u; it.holder.scale.setScalar(sc); it.holder.position.y = H * 0.5 * (1 - sc);
-    swEl.style.top = (R0 + R1) / 2 + 'px';
+    if (rowUI) { Object.assign(swEl.style, { top: SW_TOP + 'px', left: '50%', right: 'auto', transform: 'translateX(-50%)', flexDirection: 'row' }); }
+    else { Object.assign(swEl.style, { top: (R0 + R1) / 2 + 'px', left: '', right: '', transform: '', flexDirection: '' }); }
     const front = new THREE.Vector3(0, 0, 22).project(cam);
-    buyEl.style.top = Math.min(innerHeight - 74, Math.max(R0 + 120, (1 - front.y) / 2 * innerHeight + 22)) + 'px';
+    buyEl.style.top = rowUI ? BUY_TOP + 'px' : Math.min(innerHeight - 74, Math.max(R0 + 120, (1 - front.y) / 2 * innerHeight + 22)) + 'px';
     renderer.render(scene, cam);
   } else if (floaters.group.visible) {
     // welcome: a few toys drift about behind the logo; they shrink away once the tour starts
@@ -307,3 +311,9 @@ frame();
 window.__ready = true;
 if (params.has('i')) { startTour(); setTimeout(() => selectToy(Number(params.get('i'))), 3200); }
 
+
+// ── leaving by accident: warn before a refresh / close if there is something in progress ──
+addEventListener('beforeunload', e => {
+  const busy = started && !resetting && (focus >= 0 || linesOf().length > 0 || drawer.classList.contains('on'));
+  if (busy) { e.preventDefault(); e.returnValue = ''; return ''; }
+});
