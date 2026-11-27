@@ -553,11 +553,15 @@ async function buildBird() {
     update(s, animated) {
       if (!animated) { rock.rotation.set(0, 0.5, 0); spin.rotation.y = 0.3; return; }
       const t = ((s % LOOP_S) + LOOP_S) % LOOP_S;
-      // a nudge sets the bird rocking side to side (roll) and gently nodding (pitch); a second nudge swings it round the tip
-      const roll = swing(t, 0.6, 0.55, 0.5, 4.2) + swing(t, 6.4, -0.5, 0.5, 4.2);
-      const pitch = swing(t, 0.6, 0.12, 0.6, 3.1) + swing(t, 6.4, 0.1, 0.6, 3.1);
-      const yawKick = (t > 3.2 && t < 5.6 ? Math.sin(Math.PI * (t - 3.2) / 2.4) ** 2 : 0) * 0.9 + (t > 9.2 && t < 11.6 ? -(Math.sin(Math.PI * (t - 9.2) / 2.4) ** 2) : 0) * 0.9;
-      rock.rotation.set(pitch, 0.5 + yawKick, roll, 'YXZ');
+      // From the video: a flick sets the bird spinning on the branch tip. It turns round and round, slowing down, and leans over
+      // (banks) towards one side as it goes, so the wings tip up and down as it comes round. A second flick repeats it.
+      const PER = 6, F0 = 0.6, W0 = 5.5, KD = 0.4;
+      const per = Math.floor((t - F0) / PER), u = t - F0 - per * PER;
+      const yaw = per * 4 * Math.PI + W0 * (1 - Math.exp(-KD * u)) / KD;           // two full turns per flick
+      const spd = W0 * Math.exp(-KD * u);                                           // current turning speed
+      const lean = 0.1 + 0.5 * Math.pow(spd / W0, 0.6);                             // leans more the faster it turns
+      const roll = lean * Math.cos(yaw), pitch = lean * 0.55 * Math.sin(yaw);
+      rock.rotation.set(pitch, 0.5 + yaw, roll, 'YXZ');
       // the branch itself sways a little with the bird
       model.rotation.z = -roll * 0.05; model.rotation.x = pitch * 0.15;
       spin.rotation.y = 0.3 + 0.2 * Math.sin(s * 2 * Math.PI / LOOP_S);
