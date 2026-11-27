@@ -96,7 +96,7 @@ let prog = 0;            // 0 = inside the printer … 1 = presented
 let uiOn = false, pickedAt = 0;
 const EMERGE_S = 1.5, ease = k => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2);
 const menuHost = document.getElementById('menu-root'), chooseEl = document.getElementById('choose');
-const setUI = on => [document.getElementById('info'), document.getElementById('swatches'), document.getElementById('buy')].forEach(e => e.classList.toggle('out', !on));
+const setUI = on => [document.getElementById('info'), document.getElementById('swatches'), document.getElementById('buy'), document.getElementById('closebtn')].forEach(e => e.classList.toggle('out', !on));
 function selectToy(i) {
   if (focus >= 0 || prog > 0) return;
   focus = shown = i; pickedAt = performance.now(); uiOn = false; items[i].t0 = clock.elapsedTime;   // animation starts from its first frame as it comes out
@@ -277,7 +277,7 @@ function frame() {
     infoEl.style.top = titleTop + 'px';
     // small / portrait screens: colours sit in a row above the price bar instead of down the side, so nothing can overlap
     const rowUI = innerWidth < 900 || innerHeight < 620;
-    const BUY_TOP = innerHeight - 84, SW_TOP = BUY_TOP - 62;
+    const narrowUI = innerWidth < 520, BUY_TOP = innerHeight - (narrowUI ? 108 : 84), SW_TOP = BUY_TOP - 62;
     const R0 = titleTop + infoEl.offsetHeight + 26, R1 = rowUI ? SW_TOP - 18 : innerHeight - 112;
     cam.position.set(0, narrow ? 190 : 120, narrow ? 640 : 430); cam.lookAt(0, 62, 0);
     const proj = yy => (1 - new THREE.Vector3(0, yy, 0).project(cam).y) / 2 * innerHeight;
@@ -293,6 +293,10 @@ function frame() {
     else { Object.assign(swEl.style, { top: (R0 + R1) / 2 + 'px', left: '', right: '', transform: '', flexDirection: '' }); }
     const front = new THREE.Vector3(0, 0, 22).project(cam);
     buyEl.style.top = rowUI ? BUY_TOP + 'px' : Math.min(innerHeight - 74, Math.max(R0 + 120, (1 - front.y) / 2 * innerHeight + 22)) + 'px';
+    // Close sits on its own, just to the right of the buy bar (under it on narrow phones)
+    { const br = buyEl.getBoundingClientRect(), cb = document.getElementById('closebtn');
+      if (innerWidth - br.right > 84) { cb.style.left = br.right + 14 + 'px'; cb.style.top = br.top + br.height / 2 - 17 + 'px'; }
+      else { cb.style.left = br.left + br.width / 2 - 24 + 'px'; cb.style.top = br.bottom + 4 + 'px'; } }
     renderer.render(scene, cam);
   } else if (floaters.group.visible) {
     // welcome: a few toys drift about behind the logo; they shrink away once the tour starts
