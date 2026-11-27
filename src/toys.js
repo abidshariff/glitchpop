@@ -433,12 +433,92 @@ async function buildDino() {
   };
 }
 
+async function buildSnake() {
+  // An articulated snake printed as 34 separate linked pieces. Each piece is moved as a rigid body along a bending spine,
+  // so the snake can uncoil, slither and curl back up.
+  const m = (await manifest).snake;
+  const buf = await (await fetch(import.meta.env.BASE_URL + 'models/' + m.file)).arrayBuffer();
+  const nv = m.vertices;
+  const rest = new Float32Array(buf.slice(0, nv * 12));
+  const idxBody = new Uint32Array(buf.slice(nv * 12, nv * 12 + m.indices * 4));
+  const idxEyes = new Uint32Array(buf.slice(nv * 12 + m.indices * 4, nv * 12 + (m.indices + m.eyeIndices) * 4));
+  const pos = new THREE.BufferAttribute(new Float32Array(rest), 3).setUsage(THREE.DynamicDrawUsage);
+  const gBody = new THREE.BufferGeometry(); gBody.setAttribute('position', pos); gBody.setIndex(new THREE.BufferAttribute(idxBody, 1));
+  gBody.computeVertexNormals();
+  const nor = gBody.attributes.normal; nor.setUsage(THREE.DynamicDrawUsage);
+  const restN = new Float32Array(nor.array);
+  const gEyes = new THREE.BufferGeometry(); gEyes.setAttribute('position', pos); gEyes.setAttribute('normal', nor); gEyes.setIndex(new THREE.BufferAttribute(idxEyes, 1));
+  const PINK = 0xff6fae, BLUE = 0x2f8bff;
+  const body = mesh(gBody, PINK, 0.42), eyes = mesh(gEyes, 0x101218, 0.25);
+  body.frustumCulled = eyes.frustumCulled = false;
+  // spine geometry in the snake's own plane (x, z): joint-to-joint links with fixed lengths
+  const C = m.centroids.map(c => [c[0], c[2]]), N = C.length;
+  const d = [], phi0 = [];
+  for (let i = 0; i < N - 1; i++) { const dx = C[i + 1][0] - C[i][0], dz = C[i + 1][1] - C[i][1]; d.push(Math.hypot(dx, dz)); let a = Math.atan2(dz, dx); if (i) { while (a - phi0[i - 1] > Math.PI) a -= 2 * Math.PI; while (a - phi0[i - 1] < -Math.PI) a += 2 * Math.PI; } phi0.push(a); }
+  const sArc = [0]; d.forEach(x => sArc.push(sArc[sArc.length - 1] + x));
+  const headOf = phi => Array.from({ length: N }, (_, i) => (i === 0 ? phi[0] : i === N - 1 ? phi[N - 2] : (phi[i - 1] + phi[i]) / 2));
+  const psi0 = headOf(phi0);
+  const restMean = [C.reduce((a, c) => a + c[0], 0) / N, C.reduce((a, c) => a + c[1], 0) / N];
+  const REST_W = Math.max(...C.map(c => c[0])) - Math.min(...C.map(c => c[0])), REST_H = Math.max(...C.map(c => c[1])) - Math.min(...C.map(c => c[1]));
+  const spin = new THREE.Group(), tilt = new THREE.Group(), model = new THREE.Group();
+  model.add(body, eyes); tilt.add(model); tilt.rotation.x = 1.12; spin.add(tilt);
+  const root = new THREE.Group(); root.position.y = 78; root.add(spin);
+  const css = n => '#' + n.toString(16).padStart(6, '0');
+  const v = (c, accent) => ({ accent, swatch: [css(c)], colors: { body: c } });
+  const LOOP_S = 12, sm = x => { x = Math.min(1, Math.max(0, x)); return x * x * (3 - 2 * x); };
+  const phiT = new Float64Array(N - 1), cx = new Float64Array(N), cz = new Float64Array(N), psi = new Float64Array(N);
+  const K = 2 * Math.PI / 280;      // wavelength ~280 mm: two gentle S-bends along the body, no loops crossing
+  function pose(mix, ph) {
+    for (let i = 0; i < N - 1; i++) { const sMid = (sArc[i] + sArc[i + 1]) / 2; const wave = 0.2 + 1.8 * Math.sin(K * sMid - ph); phiT[i] = phi0[i] * (1 - mix) + wave * mix; }
+    cx[0] = C[0][0]; cz[0] = C[0][1];
+    for (let i = 0; i < N - 1; i++) { cx[i + 1] = cx[i] + d[i] * Math.cos(phiT[i]); cz[i + 1] = cz[i] + d[i] * Math.sin(phiT[i]); }
+    let mx = 0, mz = 0; for (let i = 0; i < N; i++) { mx += cx[i]; mz += cz[i]; } mx = mx / N - restMean[0]; mz = mz / N - restMean[1];
+    for (let i = 0; i < N; i++) { cx[i] -= mx; cz[i] -= mz; }
+    // never let the snake grow bigger than its coiled size on screen
+    let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9; for (let i = 0; i < N; i++) { x0 = Math.min(x0, cx[i]); x1 = Math.max(x1, cx[i]); z0 = Math.min(z0, cz[i]); z1 = Math.max(z1, cz[i]); }
+    const sc = Math.min(1, 1.05 * REST_W / (x1 - x0), 1.05 * REST_H / (z1 - z0));
+    model.scale.setScalar(sc); model.position.set(restMean[0] * (1 - sc), 0, restMean[1] * (1 - sc));
+    for (let i = 0; i < N; i++) psi[i] = i === 0 ? phiT[0] : i === N - 1 ? phiT[N - 2] : (phiT[i - 1] + phiT[i]) / 2;
+  }
+  function apply() {
+    const P = pos.array, Nn = nor.array;
+    for (let k = 0; k < N; k++) {
+      const a = psi[k] - psi0[k], c = Math.cos(a), s = Math.sin(a), ox = C[k][0], oz = C[k][1], nx = cx[k], nz = cz[k];
+      for (let j = m.ranges[k][0] * 3, e = m.ranges[k][1] * 3; j < e; j += 3) {
+        const x = rest[j] - ox, z = rest[j + 2] - oz;
+        P[j] = c * x - s * z + nx; P[j + 1] = rest[j + 1]; P[j + 2] = s * x + c * z + nz;
+        const ax = restN[j], az = restN[j + 2];
+        Nn[j] = c * ax - s * az; Nn[j + 1] = restN[j + 1]; Nn[j + 2] = s * ax + c * az;
+      }
+    }
+    pos.needsUpdate = true; nor.needsUpdate = true;
+  }
+  pose(0, 0); apply();
+  return {
+    root, spin, mats: [body.material, eyes.material],
+    roles: { body: body.material },
+    swatchShape: 'square',
+    variants: [v(PINK, '#ff8cc0'), v(BLUE, '#5aa2ff')],
+    natural: 156, anim: 156, animCentre: 78,
+    update(s, animated) {
+      if (!animated) { spin.rotation.y = 0.2; return; }
+      const t = ((s % LOOP_S) + LOOP_S) % LOOP_S;
+      // curled up -> uncurls -> slithers (a wave runs down the body) -> curls back up
+      const mix = sm((t - 1.2) / 2.2) - sm((t - 8.6) / 2.4);
+      pose(mix, Math.max(0, t - 2.2) * 2.4);
+      apply();
+      spin.rotation.y = 0.2 + 0.15 * Math.sin(s * 2 * Math.PI / LOOP_S);
+    },
+  };
+}
+
 // Names shown in the cart for each colour option (same order as the swatch buttons)
 export const COLOR_NAMES = {
   wand: ['Black & Green', 'Black & White', 'White & Black'],
   egg: ['Green', 'Pink', 'Red', 'White'],
   star: ['Red', 'Orange', 'Green'],
   donut: ['Orange', 'Pink', 'Green', 'Brown'],
+  snake: ['Pink', 'Blue'],
   dino: ['Green & Blue', 'Red & Black', 'Green & White'],
   spiral: ['Black & Red', 'Black', 'White', 'Red', 'Black & White'],
 };
@@ -462,4 +542,7 @@ export const TOYS = [
   { id: 'dino', name: 'Dino Run Balancing Wheel', short: 'Dino Run',
     tag: '', blurb: '',
     build: buildDino, duration: 12, price: 5, plateHeight: 118, demoHeight: 110, thumb: { cy: 52, h: 112, t: 0 } },
+  { id: 'snake', name: 'Articulated Snake', short: 'Snake',
+    tag: '', blurb: '',
+    build: buildSnake, duration: 12, price: 6, plateHeight: 128, demoHeight: 110, thumb: { cy: 78, h: 215, t: 0 } },
 ];

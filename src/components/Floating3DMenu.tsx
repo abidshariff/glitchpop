@@ -44,9 +44,10 @@ const face = (extra: CSSProperties): CSSProperties => ({ position: 'absolute', p
  */
 export function Floating3DMenu({ items, activeIndex, onSelect, className = '', minSlots = 7, layout = 'list', busy = false, doorOpen = false }: Floating3DMenuProps) {
   const grid = layout === 'grid';
+  const cols = items.length > 6 ? 3 : 2;   // more products -> three icons per tray, so everything stays visible
   const SLOT = grid ? 88 : SLOT_LIST;
   const reduce = useReducedMotion() ?? false;
-  const slots = grid ? Math.max(minSlots, Math.ceil(items.length / 2)) : Math.max(minSlots, items.length);   // trays rendered (extra ones scroll)
+  const slots = grid ? Math.max(minSlots, Math.ceil(items.length / cols)) : Math.max(minSlots, items.length);   // trays rendered (extra ones scroll)
   const H = minSlots * (SLOT + TRAY) + TRAY + 62 + HEAD + FOOT;   // body height shows `minSlots` trays at once
   const scroller = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -134,8 +135,8 @@ export function Floating3DMenu({ items, activeIndex, onSelect, className = '', m
                   <div key={i} style={{ position: 'relative', height: SLOT + TRAY }}>
                     {grid
                       ? <div style={{ display: 'flex', height: SLOT }}>
-                          {[0, 1].map(c => { const k = i * 2 + c, g = items[k]; return g
-                            ? <Bay key={k} idx={k} item={g} slot={SLOT} grid busy={busy} lit={k === activeIndex} reduce={reduce} ready={ready} onSelect={() => onSelect(k)} />
+                          {Array.from({ length: cols }, (_, c) => { const k = i * cols + c, g = items[k]; return g
+                            ? <Bay key={k} idx={k} item={g} slot={SLOT} grid cols={cols} busy={busy} lit={k === activeIndex} reduce={reduce} ready={ready} onSelect={() => onSelect(k)} />
                             : <div key={k} style={{ flex: 1 }} />; })}
                         </div>
                       : it ? <Bay idx={i} item={it} slot={SLOT} lit={i === activeIndex} reduce={reduce} ready={ready} onSelect={() => onSelect(i)} /> : <div style={{ height: SLOT }} />}
@@ -231,10 +232,10 @@ function PrintBed() {
   );
 }
 
-function Bay({ idx, item, lit: litProp, reduce, ready, onSelect, slot, grid = false, busy = false }: { idx: number; ready: boolean; item: MenuItem; lit: boolean; reduce: boolean; onSelect: () => void; slot: number; grid?: boolean; busy?: boolean }) {
+function Bay({ idx, item, lit: litProp, reduce, ready, onSelect, slot, grid = false, cols = 2, busy = false }: { idx: number; ready: boolean; item: MenuItem; lit: boolean; reduce: boolean; onSelect: () => void; slot: number; grid?: boolean; cols?: number; busy?: boolean }) {
   const [hv, setHv] = useState(false);
   const lit = litProp || (grid && hv && ready && !busy);
-  const img = grid ? 72 : 54;
+  const img = grid ? (cols > 2 ? 62 : 72) : 54;
   return (
     <motion.button
       type="button"
@@ -246,7 +247,7 @@ function Bay({ idx, item, lit: litProp, reduce, ready, onSelect, slot, grid = fa
       onClick={() => { if (ready) onSelect(); }}
       className="group"
       style={{
-        position: 'relative', display: 'flex', alignItems: 'center', justifyContent: grid ? 'center' : 'flex-start', gap: 10, width: grid ? '50%' : '100%', flex: grid ? 1 : undefined, height: slot, padding: grid ? 0 : '0 14px 0 8px',
+        position: 'relative', display: 'flex', alignItems: 'center', justifyContent: grid ? 'center' : 'flex-start', gap: 10, width: grid ? `${100 / cols}%` : '100%', flex: grid ? 1 : undefined, height: slot, padding: grid ? 0 : '0 14px 0 8px',
         border: 0, background: 'transparent', cursor: ready ? 'pointer' : 'default', pointerEvents: ready ? 'auto' : 'none', touchAction: 'manipulation', textAlign: 'left', outline: 'none', overflow: 'hidden', appearance: 'none',
       }}
     >
