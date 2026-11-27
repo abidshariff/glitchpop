@@ -275,6 +275,7 @@ function frame() {
     // hero fits between the title and the buy bar, centred on the page
     const titleTop = Math.max(92, innerHeight * 0.115);
     infoEl.style.top = titleTop + 'px';
+    { const ir = infoEl.getBoundingClientRect(); const cb = document.getElementById('closebtn'); cb.style.left = Math.min(innerWidth - 44, ir.right + 18) + 'px'; cb.style.top = (ir.top + ir.height / 2 - 17) + 'px'; }   // sits beside the title, right where the eye is
     // small / portrait screens: colours sit in a row above the price bar instead of down the side, so nothing can overlap
     const rowUI = innerWidth < 900 || innerHeight < 620;
     const BUY_TOP = innerHeight - 84, SW_TOP = BUY_TOP - 62;
