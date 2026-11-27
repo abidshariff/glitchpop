@@ -356,7 +356,7 @@ async function buildDonut() {
 async function buildSpiral() {
   // The taller, narrower spiral (green) is the inner piece; the shorter, wider one (orange) is the shell it screws through.
   const [gInner, gShell] = await Promise.all([loadGeometry('cono_outer'), loadGeometry('cono_inner')]);
-  const inner = mesh(gInner, 0x17171c, 0.5), shell = mesh(gShell, 0x17171c, 0.5);
+  const inner = mesh(gInner, 0xe5231a, 0.5), shell = mesh(gShell, 0x17171c, 0.5);   // default: black shell, red inner
   const BASE = 39;                                   // both pieces are centred on the same height when nested
   shell.position.y = BASE; inner.position.y = BASE;
   const slide = new THREE.Group(); slide.add(inner);   // slide.position.y / rotation.y move the inner spiral as a screw
@@ -373,7 +373,7 @@ async function buildSpiral() {
     root, spin, mats: [inner.material, shell.material],
     roles: { inner: inner.material, shell: shell.material },
     swatchShape: 'wide',
-    variants: [v(BK, BK, '#8a8f9c'), v(WH, WH, '#c9cfdc'), v(RD, RD, '#ff6a4d'), v(BK, RD, '#ff6a4d'), v(BK, WH, '#c9cfdc')],
+    variants: [v(BK, RD, '#ff6a4d'), v(BK, BK, '#8a8f9c'), v(WH, WH, '#c9cfdc'), v(RD, RD, '#ff6a4d'), v(BK, WH, '#c9cfdc')],
     natural: 156, anim: 156, animCentre: 78,
     update(s, animated) {
       const t = animated ? ((s % LOOP_S) + LOOP_S) % LOOP_S : 0;
@@ -390,7 +390,7 @@ export const COLOR_NAMES = {
   egg: ['Green', 'Pink', 'Red', 'White'],
   star: ['Red', 'Orange', 'Green'],
   donut: ['Orange', 'Pink', 'Green', 'Brown'],
-  spiral: ['Black', 'White', 'Red', 'Black & Red', 'Black & White'],
+  spiral: ['Black & Red', 'Black', 'White', 'Red', 'Black & White'],
 };
 
 export const TOYS = [
