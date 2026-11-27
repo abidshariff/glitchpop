@@ -461,7 +461,7 @@ async function buildSnake() {
   const restMean = [C.reduce((a, c) => a + c[0], 0) / N, C.reduce((a, c) => a + c[1], 0) / N];
   const REST_W = Math.max(...C.map(c => c[0])) - Math.min(...C.map(c => c[0])), REST_H = Math.max(...C.map(c => c[1])) - Math.min(...C.map(c => c[1]));
   const spin = new THREE.Group(), tilt = new THREE.Group(), model = new THREE.Group();
-  model.add(body, eyes); tilt.add(model); tilt.rotation.x = 1.12; spin.add(tilt);
+  model.add(body, eyes); tilt.add(model); tilt.rotation.x = 0.78; spin.add(tilt);
   const root = new THREE.Group(); spin.position.y = 104; root.add(spin);   // offset lives on the inner group so the outer scale applies to it
   const css = n => '#' + n.toString(16).padStart(6, '0');
   const v = (c, accent) => ({ accent, swatch: [css(c)], colors: { body: c } });
@@ -480,15 +480,26 @@ async function buildSnake() {
     model.scale.setScalar(sc); model.position.set(-restMean[0] * sc, 0, -restMean[1] * sc);   // keep the snake's middle on the pivot
     for (let i = 0; i < N; i++) psi[i] = i === 0 ? phiT[0] : i === N - 1 ? phiT[N - 2] : (phiT[i - 1] + phiT[i]) / 2;
   }
+  // the head and neck rise off the floor like in the product photo: nose up, looking at the viewer
+  const RISE = 6, HEAD_PITCH = 0.8, HEAD_LIFT = 30;
+  const rise = k => Math.max(0, 1 - k / RISE);
+  let raise = 1;                                   // 0 = flat on the floor, 1 = head fully raised
   function apply() {
     const P = pos.array, Nn = nor.array;
     for (let k = 0; k < N; k++) {
       const a = psi[k] - psi0[k], c = Math.cos(a), s = Math.sin(a), ox = C[k][0], oz = C[k][1], nx = cx[k], nz = cz[k];
+      const r = rise(k) * raise, th = HEAD_PITCH * r * (k === 0 ? 1.15 : 1), lift = HEAD_LIFT * r * r * (k === 0 ? 1.1 : 1);
+      const ct = Math.cos(th), st = Math.sin(th), fx = -Math.cos(psi[k]), fz = -Math.sin(psi[k]);   // f = direction towards the head
       for (let j = m.ranges[k][0] * 3, e = m.ranges[k][1] * 3; j < e; j += 3) {
-        const x = rest[j] - ox, z = rest[j + 2] - oz;
-        P[j] = c * x - s * z + nx; P[j + 1] = rest[j + 1]; P[j + 2] = s * x + c * z + nz;
-        const ax = restN[j], az = restN[j + 2];
-        Nn[j] = c * ax - s * az; Nn[j + 1] = restN[j + 1]; Nn[j + 2] = s * ax + c * az;
+        let x = rest[j] - ox, z = rest[j + 2] - oz, y = rest[j + 1];
+        let rx = c * x - s * z, rz = s * x + c * z;
+        let u = rx * fx + rz * fz;
+        const u2 = u * ct - y * st, y2 = y * ct + u * st;
+        P[j] = rx + (u2 - u) * fx + nx; P[j + 1] = y2 + lift; P[j + 2] = rz + (u2 - u) * fz + nz;
+        const ax = restN[j], ay = restN[j + 1], az = restN[j + 2];
+        const qx = c * ax - s * az, qz = s * ax + c * az, qu = qx * fx + qz * fz;
+        const qu2 = qu * ct - ay * st, qy2 = ay * ct + qu * st;
+        Nn[j] = qx + (qu2 - qu) * fx; Nn[j + 1] = qy2; Nn[j + 2] = qz + (qu2 - qu) * fz;
       }
     }
     pos.needsUpdate = true; nor.needsUpdate = true;
