@@ -403,7 +403,7 @@ async function buildDino() {
   place(wheel1, 0, -0.01, -2.25); place(wheel2, 0, -0.01, 15.25);
   const body = new THREE.Group(); body.add(pend, wheel1, wheel2); body.position.y = 25;   // wheel bottoms touch y = 0
   const travel = new THREE.Group(); travel.add(body);
-  const spin = new THREE.Group(); spin.add(travel);
+  const spin = new THREE.Group(); spin.add(travel); spin.position.y = 14;   // centred in a taller frame, so the spin and roll never feel cramped
   const root = new THREE.Group(); root.add(spin);
   const css = n => '#' + n.toString(16).padStart(6, '0');
   const v = (a, b, accent) => ({ accent, swatch: [css(a), css(b)], colors: { body: a, wheels: b } });
@@ -419,7 +419,7 @@ async function buildDino() {
     roles: { body: dino.material, wheels: wheel1.material },
     swatchShape: 'wide',
     variants: [v(GREEN, BLUE, '#4fd17a'), v(RD, BK, '#ff6a4d'), v(GREEN, WH, '#4fd17a')],
-    natural: 90, anim: 90, animCentre: 45,
+    natural: 118, anim: 118, animCentre: 59,
     update(s, animated) {
       if (!animated) { travel.position.x = 0; wheel1.rotation.z = wheel2.rotation.z = 0; pend.rotation.z = 0; spin.rotation.y = 0.3; return; }
       const t = ((s % LOOP_S) + LOOP_S) % LOOP_S, h = 0.08;
@@ -462,7 +462,7 @@ async function buildSnake() {
   const REST_W = Math.max(...C.map(c => c[0])) - Math.min(...C.map(c => c[0])), REST_H = Math.max(...C.map(c => c[1])) - Math.min(...C.map(c => c[1]));
   const spin = new THREE.Group(), tilt = new THREE.Group(), model = new THREE.Group();
   model.add(body, eyes); tilt.add(model); tilt.rotation.x = 1.12; spin.add(tilt);
-  const root = new THREE.Group(); root.position.y = 78; root.add(spin);
+  const root = new THREE.Group(); spin.position.y = 104; root.add(spin);   // offset lives on the inner group so the outer scale applies to it
   const css = n => '#' + n.toString(16).padStart(6, '0');
   const v = (c, accent) => ({ accent, swatch: [css(c)], colors: { body: c } });
   const LOOP_S = 12, sm = x => { x = Math.min(1, Math.max(0, x)); return x * x * (3 - 2 * x); };
@@ -477,7 +477,7 @@ async function buildSnake() {
     // never let the snake grow bigger than its coiled size on screen
     let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9; for (let i = 0; i < N; i++) { x0 = Math.min(x0, cx[i]); x1 = Math.max(x1, cx[i]); z0 = Math.min(z0, cz[i]); z1 = Math.max(z1, cz[i]); }
     const sc = Math.min(1, 1.05 * REST_W / (x1 - x0), 1.05 * REST_H / (z1 - z0));
-    model.scale.setScalar(sc); model.position.set(restMean[0] * (1 - sc), 0, restMean[1] * (1 - sc));
+    model.scale.setScalar(sc); model.position.set(-restMean[0] * sc, 0, -restMean[1] * sc);   // keep the snake's middle on the pivot
     for (let i = 0; i < N; i++) psi[i] = i === 0 ? phiT[0] : i === N - 1 ? phiT[N - 2] : (phiT[i - 1] + phiT[i]) / 2;
   }
   function apply() {
@@ -499,7 +499,7 @@ async function buildSnake() {
     roles: { body: body.material },
     swatchShape: 'square',
     variants: [v(PINK, '#ff8cc0'), v(BLUE, '#5aa2ff')],
-    natural: 156, anim: 156, animCentre: 78,
+    natural: 208, anim: 208, animCentre: 104,
     update(s, animated) {
       if (!animated) { spin.rotation.y = 0.2; return; }
       const t = ((s % LOOP_S) + LOOP_S) % LOOP_S;
