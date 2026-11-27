@@ -96,7 +96,7 @@ let prog = 0;            // 0 = inside the printer … 1 = presented
 let uiOn = false, pickedAt = 0;
 const EMERGE_S = 1.5, ease = k => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2);
 const menuHost = document.getElementById('menu-root'), chooseEl = document.getElementById('choose');
-const setUI = on => [document.getElementById('info'), document.getElementById('swatches'), document.getElementById('buy'), document.getElementById('closebtn')].forEach(e => e.classList.toggle('out', !on));
+const setUI = on => [document.getElementById('info'), document.getElementById('swatches'), document.getElementById('buy')].forEach(e => e.classList.toggle('out', !on));
 function selectToy(i) {
   if (focus >= 0 || prog > 0) return;
   focus = shown = i; pickedAt = performance.now(); uiOn = false; items[i].t0 = clock.elapsedTime;   // animation starts from its first frame as it comes out
@@ -275,7 +275,6 @@ function frame() {
     // hero fits between the title and the buy bar, centred on the page
     const titleTop = Math.max(92, innerHeight * 0.115);
     infoEl.style.top = titleTop + 'px';
-    { const ir = infoEl.getBoundingClientRect(); const cb = document.getElementById('closebtn'); cb.style.left = Math.min(innerWidth - 44, ir.right + 18) + 'px'; cb.style.top = (ir.top + ir.height / 2 - 17) + 'px'; }   // sits beside the title, right where the eye is
     // small / portrait screens: colours sit in a row above the price bar instead of down the side, so nothing can overlap
     const rowUI = innerWidth < 900 || innerHeight < 620;
     const BUY_TOP = innerHeight - 84, SW_TOP = BUY_TOP - 62;
