@@ -393,6 +393,8 @@ async function buildDino() {
   const dino = mesh(gd, GREEN, 0.5), wheel1 = mesh(gw1, BLUE, 0.5), wheel2 = mesh(gw2, BLUE, 0.5);
   const weight1 = mesh(gk1, GREEN, 0.5), weight2 = mesh(gk2, GREEN, 0.5), axle = mesh(ga, GREEN, 0.5), clip = mesh(gc, GREEN, 0.5);
   dino.material.side = THREE.DoubleSide;
+  // one shared material per colour role, so a colour change reaches every part (dino, weights, axle, clip / both wheels)
+  weight1.material = weight2.material = axle.material = clip.material = dino.material; wheel2.material = wheel1.material;
   const PIV = 1.97;                                   // the axle height: the pendulum hangs from here
   const place = (m, x, y, z) => m.position.set(x, y, z);
   place(dino, 2.33, 19.92 - PIV, 6.5); place(weight1, 0, -7.25 - PIV, 10); place(weight2, 0, -7.25 - PIV, 6);
@@ -459,5 +461,5 @@ export const TOYS = [
     build: buildSpiral, duration: 12, price: 5, plateHeight: 130, demoHeight: 110, thumb: { cy: 39, h: 80, t: 0 } },
   { id: 'dino', name: 'Dino Run Balancing Wheel', short: 'Dino Run',
     tag: '', blurb: '',
-    build: buildDino, duration: 12, price: 5, plateHeight: 118, demoHeight: 110, thumb: { cy: 31, h: 96, t: 0 } },
+    build: buildDino, duration: 12, price: 5, plateHeight: 118, demoHeight: 110, thumb: { cy: 52, h: 112, t: 0 } },
 ];
