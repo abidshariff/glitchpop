@@ -186,11 +186,11 @@ function renderDrawer() {
   const [id, label] = PAY[payTab];
   document.getElementById('tabs').innerHTML = PAY.map(([k, l], j) => `<button role="tab" aria-selected="${j === payTab}" data-t="${j}">${l}</button>`).join('');
   const qr = document.getElementById('qr');
-  qr.innerHTML = `<div class="frame"><img alt="${label} QR code" data-ext="0" src="/pay/${id}.png"></div><div class="note">Scan to pay <b>${money(total)}</b> with ${label}</div>`;
+  qr.innerHTML = `<div class="frame"><img alt="${label} QR code" data-ext="0" src="${import.meta.env.BASE_URL}pay/${id}.png"></div><div class="note">Scan to pay <b>${money(total)}</b> with ${label}</div>`;
   const img = qr.querySelector('img');
   img.onerror = () => {
     const n = +img.dataset.ext + 1;
-    if (n < EXT.length) { img.dataset.ext = n; img.src = `/pay/${id}.${EXT[n]}`; }
+    if (n < EXT.length) { img.dataset.ext = n; img.src = `${import.meta.env.BASE_URL}pay/${id}.${EXT[n]}`; }
     else img.parentElement.innerHTML = `<div class="miss">${label} QR image not found.<br>Add <b>public/pay/${id}.png</b></div>`;
   };
 }

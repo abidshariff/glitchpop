@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-const manifest = fetch('/models/manifest.json').then(r => r.json());
+const manifest = fetch(import.meta.env.BASE_URL + 'models/manifest.json').then(r => r.json());
 const cache = new Map();
 
 // Shared geometry (each renderer uploads its own GPU copy).
@@ -8,7 +8,7 @@ export function loadGeometry(name, { droop } = {}) {
   if (!cache.has(name)) {
     cache.set(name, (async () => {
       const m = (await manifest)[name];
-      const buf = await (await fetch('/models/' + m.file)).arrayBuffer();
+      const buf = await (await fetch(import.meta.env.BASE_URL + 'models/' + m.file)).arrayBuffer();
       const g = new THREE.BufferGeometry();
       g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(buf, 0, m.vertices * 3), 3));
       g.setIndex(new THREE.BufferAttribute(new Uint32Array(buf, m.vertices * 12, m.indices), 1));
@@ -178,7 +178,7 @@ async function buildEgg() {
 // Each concentric ring of the star base is its own piece, so it can spin on its own.
 async function loadRings() {
   const m = (await manifest).star_rings;
-  const buf = await (await fetch('/models/' + m.file)).arrayBuffer();
+  const buf = await (await fetch(import.meta.env.BASE_URL + 'models/' + m.file)).arrayBuffer();
   return m.ranges.map(r => {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(buf, r.v * 12, r.vn * 3), 3));
