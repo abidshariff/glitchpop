@@ -523,12 +523,55 @@ async function buildSnake() {
   };
 }
 
+async function buildBird() {
+  // A balancing bird: the bird rests its beak on the tip of a curly green branch and rocks on it like a pendulum.
+  const [gb, gs] = await Promise.all([loadGeometry('bird_body'), loadGeometry('bird_stem')]);
+  const YELLOW = 0xd9ee2a, PINK = 0xff6f9c, RED = 0xe5382f, GREEN = 0x2fb88a;
+  const bird = mesh(gb, YELLOW, 0.5), stem = mesh(gs, GREEN, 0.55);
+  bird.material.side = THREE.DoubleSide;
+  stem.position.y = 50;                                   // base of the stem sits on y = 0, its tip is at y = 100
+  // the bird's own frame: x = wing span, y = towards the tail (-) and beak (+), z = thickness. Its beak tip sits on the pivot.
+  const BEAK = new THREE.Vector3(0, 8.4, 1.0);
+  const flat = new THREE.Group(); flat.add(bird); bird.position.copy(BEAK).multiplyScalar(-1);
+  const lay = new THREE.Group(); lay.add(flat); lay.rotation.x = -Math.PI / 2;      // thickness axis -> up, tail -> towards the viewer
+  const droop = new THREE.Group(); droop.add(lay); droop.rotation.x = 0.62;         // the tail fan hangs below the wings
+  const rock = new THREE.Group(); rock.add(droop); rock.position.set(0, 100, 0);    // pivot: the tip of the branch
+  const model = new THREE.Group(); model.add(stem, rock);
+  const spin = new THREE.Group(); spin.add(model);
+  const root = new THREE.Group(); root.add(spin);
+  const css = n => '#' + n.toString(16).padStart(6, '0');
+  const v = (c, accent) => ({ accent, swatch: [css(c)], colors: { bird: c } });
+  const LOOP_S = 12;
+  // damped swing after each nudge: angle = A * e^(-k t) * sin(w t)
+  const swing = (t, t0, A, k, w) => (t < t0 ? 0 : A * Math.exp(-k * (t - t0)) * Math.sin(w * (t - t0)));
+  return {
+    root, spin, mats: [bird.material, stem.material],
+    roles: { bird: bird.material },
+    swatchShape: 'square',
+    variants: [v(YELLOW, '#e4f24a'), v(PINK, '#ff8fb3'), v(RED, '#ff6a4d')],
+    natural: 130, anim: 130, animCentre: 65,
+    update(s, animated) {
+      if (!animated) { rock.rotation.set(0, 0.5, 0); spin.rotation.y = 0.3; return; }
+      const t = ((s % LOOP_S) + LOOP_S) % LOOP_S;
+      // a nudge sets the bird rocking side to side (roll) and gently nodding (pitch); a second nudge swings it round the tip
+      const roll = swing(t, 0.6, 0.55, 0.5, 4.2) + swing(t, 6.4, -0.5, 0.5, 4.2);
+      const pitch = swing(t, 0.6, 0.12, 0.6, 3.1) + swing(t, 6.4, 0.1, 0.6, 3.1);
+      const yawKick = (t > 3.2 && t < 5.6 ? Math.sin(Math.PI * (t - 3.2) / 2.4) ** 2 : 0) * 0.9 + (t > 9.2 && t < 11.6 ? -(Math.sin(Math.PI * (t - 9.2) / 2.4) ** 2) : 0) * 0.9;
+      rock.rotation.set(pitch, 0.5 + yawKick, roll, 'YXZ');
+      // the branch itself sways a little with the bird
+      model.rotation.z = -roll * 0.05; model.rotation.x = pitch * 0.15;
+      spin.rotation.y = 0.3 + 0.2 * Math.sin(s * 2 * Math.PI / LOOP_S);
+    },
+  };
+}
+
 // Names shown in the cart for each colour option (same order as the swatch buttons)
 export const COLOR_NAMES = {
   wand: ['Black & Green', 'Black & White', 'White & Black'],
   egg: ['Green', 'Pink', 'Red', 'White'],
   star: ['Red', 'Orange', 'Green'],
   donut: ['Orange', 'Pink', 'Green', 'Brown'],
+  bird: ['Yellow', 'Pink', 'Red'],
   snake: ['Pink', 'Blue'],
   dino: ['Green & Blue', 'Red & Black', 'Green & White'],
   spiral: ['Black & Red', 'Black', 'White', 'Red', 'Black & White'],
@@ -556,4 +599,7 @@ export const TOYS = [
   { id: 'snake', name: 'Articulated Snake', short: 'Snake',
     tag: '', blurb: '',
     build: buildSnake, duration: 12, price: 6, plateHeight: 128, demoHeight: 110, thumb: { cy: 78, h: 215, t: 0 } },
+  { id: 'bird', name: 'Balancing Bird', short: 'Balancing Bird',
+    tag: '', blurb: '',
+    build: buildBird, duration: 12, price: 3, plateHeight: 128, demoHeight: 110, thumb: { cy: 65, h: 150, t: 0 } },
 ];

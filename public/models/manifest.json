@@ -506,5 +506,15 @@
     -22.266951270290367
    ]
   ]
+ },
+ "bird_body": {
+  "file": "bird_body.bin",
+  "vertices": 75000,
+  "indices": 449988
+ },
+ "bird_stem": {
+  "file": "bird_stem.bin",
+  "vertices": 42389,
+  "indices": 254322
  }
 }

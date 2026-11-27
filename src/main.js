@@ -271,6 +271,7 @@ function frame() {
     it.toy.update(FROZEN !== null ? s : s - (it.t0 ?? 0), true);
   });
   if (shown >= 0) {
+    if (started) floaters.group.visible = false;
     const it = items[shown], H = it.meta.plateHeight, narrow = cam.aspect < 1;
     // hero fits between the title and the buy bar, centred on the page
     const titleTop = Math.max(92, innerHeight * 0.115);
