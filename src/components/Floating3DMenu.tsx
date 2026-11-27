@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
+import { motion, useReducedMotion, useMotionValue, useAnimationFrame } from 'framer-motion';
 
 export interface MenuItem {
   id: string;
@@ -205,6 +205,16 @@ function Screws() {
 
 /** Above the trays: gantry rails, a toolhead that slides side to side with its nozzle needle, a purge box and the hex vent. */
 function PrinterHead({ reduce, still }: { reduce: boolean; still: boolean }) {
+  // The toolhead's position comes from a running phase. When a product is shown the phase slows to a halt (and speeds
+  // back up afterwards), so the needle eases to a stop where it is and never jumps back to a start position.
+  const phase = useRef(Math.PI * 0.4), speed = useRef(1);
+  const left = useMotionValue('40%');
+  useAnimationFrame((_, delta) => {
+    const dt = Math.min(delta, 50) / 1000, target = reduce && !still ? 0 : still ? 0 : 1;
+    speed.current += (target - speed.current) * (1 - Math.exp(-dt * 2.2));
+    phase.current += dt * speed.current * (2 * Math.PI / 6);
+    left.set(`${6 + 54 * (0.5 - 0.5 * Math.cos(phase.current))}%`);
+  });
   return (
     <div aria-hidden style={{ position: 'relative', zIndex: 1, flex: `0 0 ${HEAD}px`, pointerEvents: 'none', overflow: 'hidden',
       borderBottom: '1px solid rgba(255,255,255,.12)', background: 'linear-gradient(180deg,#2a2c32,#17181c)' }}>
@@ -218,10 +228,7 @@ function PrinterHead({ reduce, still }: { reduce: boolean; still: boolean }) {
       <span style={{ position: 'absolute', left: 8, right: 8, top: 24, height: 11, borderRadius: 3, background: 'linear-gradient(180deg,#34363c,#17181b)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.18)' }} />
       <span style={{ position: 'absolute', left: 8, right: 8, top: 37, height: 3, borderRadius: 2, background: rail }} />
       {/* the toolhead, with its needle, sliding left and right along the rails */}
-      <motion.div
-        animate={reduce ? { left: '40%' } : { left: ['6%', '60%', '6%'] }}
-        transition={reduce ? (still ? { duration: 0.8, ease: 'easeOut' } : INSTANT) : { duration: 6, repeat: Infinity, ease: 'easeInOut' }}
-        style={{ position: 'absolute', top: 5, width: 54, height: 36 }}>
+      <motion.div style={{ left, position: 'absolute', top: 5, width: 54, height: 36 }}>
         <span style={{ position: 'absolute', inset: 0, borderRadius: '8px 8px 5px 5px', background: 'linear-gradient(180deg,#8a8f98,#464a51)',
           boxShadow: '0 0 0 1px rgba(0,0,0,.6), 0 6px 7px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.55)' }} />
         <span style={{ position: 'absolute', left: '50%', top: 4, marginLeft: -4, width: 8, height: 7, clipPath: 'polygon(50% 0,100% 100%,0 100%)', background: '#eef0f3' }} />
