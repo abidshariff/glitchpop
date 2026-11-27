@@ -135,7 +135,7 @@ export function Floating3DMenu({ items, activeIndex, onSelect, className = '', m
                     {grid
                       ? <div style={{ display: 'flex', height: SLOT }}>
                           {[0, 1].map(c => { const k = i * 2 + c, g = items[k]; return g
-                            ? <Bay key={k} idx={k} item={g} slot={SLOT} grid lit={k === activeIndex} reduce={reduce} ready={ready} onSelect={() => onSelect(k)} />
+                            ? <Bay key={k} idx={k} item={g} slot={SLOT} grid busy={busy} lit={k === activeIndex} reduce={reduce} ready={ready} onSelect={() => onSelect(k)} />
                             : <div key={k} style={{ flex: 1 }} />; })}
                         </div>
                       : it ? <Bay idx={i} item={it} slot={SLOT} lit={i === activeIndex} reduce={reduce} ready={ready} onSelect={() => onSelect(i)} /> : <div style={{ height: SLOT }} />}
@@ -156,7 +156,7 @@ export function Floating3DMenu({ items, activeIndex, onSelect, className = '', m
               initial={false}
               animate={{ rotateY: open ? -122 : 0 }}
               onAnimationComplete={() => setReady(open)}
-              transition={reduce ? INSTANT : { duration: 0.85, ease: [0.45, 0, 0.2, 1] }}
+              transition={reduce ? INSTANT : { duration: 1.5, ease: [0.45, 0, 0.2, 1] }}
               style={{
                 position: 'absolute', inset: 0, pointerEvents: 'none', borderRadius: 14, transformOrigin: '0% 50%',
                 border: '5px solid #aeb3ba', backfaceVisibility: 'visible',
@@ -231,9 +231,9 @@ function PrintBed() {
   );
 }
 
-function Bay({ idx, item, lit: litProp, reduce, ready, onSelect, slot, grid = false }: { idx: number; ready: boolean; item: MenuItem; lit: boolean; reduce: boolean; onSelect: () => void; slot: number; grid?: boolean }) {
+function Bay({ idx, item, lit: litProp, reduce, ready, onSelect, slot, grid = false, busy = false }: { idx: number; ready: boolean; item: MenuItem; lit: boolean; reduce: boolean; onSelect: () => void; slot: number; grid?: boolean; busy?: boolean }) {
   const [hv, setHv] = useState(false);
-  const lit = litProp || (grid && hv);
+  const lit = litProp || (grid && hv && ready && !busy);
   const img = grid ? 72 : 54;
   return (
     <motion.button
@@ -247,7 +247,7 @@ function Bay({ idx, item, lit: litProp, reduce, ready, onSelect, slot, grid = fa
       className="group"
       style={{
         position: 'relative', display: 'flex', alignItems: 'center', justifyContent: grid ? 'center' : 'flex-start', gap: 10, width: grid ? '50%' : '100%', flex: grid ? 1 : undefined, height: slot, padding: grid ? 0 : '0 14px 0 8px',
-        border: 0, background: 'transparent', cursor: ready ? 'pointer' : 'default', touchAction: 'manipulation', textAlign: 'left', outline: 'none', overflow: 'hidden', appearance: 'none',
+        border: 0, background: 'transparent', cursor: ready ? 'pointer' : 'default', pointerEvents: ready ? 'auto' : 'none', touchAction: 'manipulation', textAlign: 'left', outline: 'none', overflow: 'hidden', appearance: 'none',
       }}
     >
       {/* a soft light falling on the product: a small lamp at the top and a faint cone of light, kept inside the tray */}
@@ -261,7 +261,7 @@ function Bay({ idx, item, lit: litProp, reduce, ready, onSelect, slot, grid = fa
         background: lit ? '#fff' : 'rgba(255,255,255,.06)', boxShadow: lit ? '0 0 10px 2px rgba(255,255,255,.7)' : 'none',
       }} />
       <span style={{ position: 'relative', width: img, height: img, flex: 'none', display: 'grid', placeItems: 'center',
-        transition: 'filter .5s, opacity .5s, transform .4s', transform: grid && hv ? 'scale(1.08)' : 'none', filter: lit || grid ? 'none' : 'brightness(.62) saturate(.75)', opacity: lit || grid ? 1 : 0.92 }}>
+        transition: 'filter .5s, opacity .5s, transform .4s', transform: grid && hv && ready && !busy ? 'scale(1.08)' : 'none', filter: lit || grid ? 'none' : 'brightness(.62) saturate(.75)', opacity: lit || grid ? 1 : 0.92 }}>
         <img src={item.image} alt="" draggable={false} style={{ width: img, height: img, objectFit: 'contain', filter: 'drop-shadow(0 5px 6px rgba(0,0,0,.45))' }} />
       </span>
       {!grid && <span style={{

@@ -74,7 +74,7 @@ async function buildWand() {
           objectNormal = vec3(d.x * nr2 + nt.x, ny2, d.y * nr2 + nt.y); }`)
   };
   const spindle = mesh(gs, 0xb6ff1a), pumpkin = new THREE.Mesh(gp, pumpkinMat), handle = mesh(gh, 0x16161c, 0.35), stem = mesh(gt, 0x6f5034);
-  const HANDLE_TOP = 102, SLIDE_MIN = HANDLE_TOP + 32, SLIDE_MAX = 238;
+  const HANDLE_TOP = 102, SLIDE_MIN = 120, SLIDE_MAX = 262;   // pumpkin body rests right on the handle at the bottom and reaches the star end at the top
   const CYCLE = 12;
   // spin angle table: fast mid-slide, slow turn otherwise; normalised to whole turns so the loop has no jump
   const SPIN_STEPS = 1440, spinTab = new Float32Array(SPIN_STEPS + 1);
@@ -356,7 +356,7 @@ async function buildDonut() {
 async function buildSpiral() {
   // The taller, narrower spiral (green) is the inner piece; the shorter, wider one (orange) is the shell it screws through.
   const [gInner, gShell] = await Promise.all([loadGeometry('cono_outer'), loadGeometry('cono_inner')]);
-  const inner = mesh(gInner, 0x1f7a3a, 0.5), shell = mesh(gShell, 0xff7a1a, 0.5);
+  const inner = mesh(gInner, 0x17171c, 0.5), shell = mesh(gShell, 0x17171c, 0.5);
   const BASE = 39;                                   // both pieces are centred on the same height when nested
   shell.position.y = BASE; inner.position.y = BASE;
   const slide = new THREE.Group(); slide.add(inner);   // slide.position.y / rotation.y move the inner spiral as a screw
@@ -364,7 +364,8 @@ async function buildSpiral() {
   const spin = new THREE.Group(); spin.add(model);
   const root = new THREE.Group(); root.add(spin);
   const css = n => '#' + n.toString(16).padStart(6, '0');
-  const v = (a, b, accent) => ({ accent, swatch: [css(a), css(b)], colors: { shell: a, inner: b } });
+  const v = (a, b, accent) => ({ accent, swatch: a === b ? [css(a)] : [css(a), css(b)], colors: { shell: a, inner: b } });
+  const BK = 0x17171c, WH = 0xf4f4f4, RD = 0xe5231a;
   const K = THREE.MathUtils.degToRad(5.4);              // the blades twist 5.4° per unit of height, so sliding along them = one full turn per ~66 units
   const U = 70, LOOP_S = 12;
   const sm = x => { x = Math.min(1, Math.max(0, x)); return x * x * (3 - 2 * x); };
@@ -372,7 +373,7 @@ async function buildSpiral() {
     root, spin, mats: [inner.material, shell.material],
     roles: { inner: inner.material, shell: shell.material },
     swatchShape: 'wide',
-    variants: [v(0xff7a1a, 0x1f7a3a, '#ff9a4a'), v(0xe5231a, 0xf4f4f4, '#ff6a4d'), v(0x1f78d1, 0xff7a1a, '#4f9be8')],
+    variants: [v(BK, BK, '#8a8f9c'), v(WH, WH, '#c9cfdc'), v(RD, RD, '#ff6a4d'), v(BK, RD, '#ff6a4d'), v(BK, WH, '#c9cfdc')],
     natural: 156, anim: 156, animCentre: 78,
     update(s, animated) {
       const t = animated ? ((s % LOOP_S) + LOOP_S) % LOOP_S : 0;
@@ -389,7 +390,7 @@ export const COLOR_NAMES = {
   egg: ['Green', 'Pink', 'Red', 'White'],
   star: ['Red', 'Orange', 'Green'],
   donut: ['Orange', 'Pink', 'Green', 'Brown'],
-  spiral: ['Orange & Green', 'Red & White', 'Blue & Orange'],
+  spiral: ['Black', 'White', 'Red', 'Black & Red', 'Black & White'],
 };
 
 export const TOYS = [

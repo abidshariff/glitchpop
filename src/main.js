@@ -236,7 +236,7 @@ async function resetAll() {
   showCart();
   while (prog > 0) await sleep(60);
   await sleep(250); menu.setDoorOpen(false);
-  await sleep(1150);
+  await sleep(1750);
   const base = menuHost.style.transform;
   await menuHost.animate([{ opacity: 1, transform: base }, { opacity: 0, transform: `${base} translateY(40px) scale(.9)` }], { duration: 800, easing: 'cubic-bezier(.5,0,.75,0)', fill: 'forwards' }).finished;
   menuHost.style.visibility = 'hidden'; menuHost.getAnimations().forEach(an => an.cancel());
@@ -258,8 +258,9 @@ function frame() {
   const u = ease(prog);
   if (focus >= 0 && prog >= 1 && !uiOn) { uiOn = true; setUI(true); }
   const busy = focus >= 0 || prog > 0;
-  menuHost.style.pointerEvents = busy || !started || resetting ? 'none' : ''; menu.setBusy(busy);
-  menuHost.style.filter = u > 0.001 ? `blur(${(u * 9).toFixed(2)}px) brightness(${(1 - 0.14 * u).toFixed(3)})` : '';
+  menuHost.style.pointerEvents = busy || !started || resetting ? 'none' : ''; menu.setBusy(busy); menuHost.classList.toggle('locked', busy || !started || resetting);
+  menuHost.style.filter = u > 0.001 ? `blur(${(u * 20).toFixed(2)}px) brightness(${(1 + 0.35 * u).toFixed(3)})` : '';
+  menuHost.style.opacity = (1 - 0.74 * u).toFixed(3);
   const introK = started && !resetting ? Math.min(1, Math.max(0, (clock.elapsedTime - startedAt - 1.7) / 0.8)) : 0;
   chooseEl.style.opacity = introK * (1 - Math.min(1, u * 2.5));
   const kc = 1 - Math.exp(-dt * 10);
@@ -296,7 +297,7 @@ function frame() {
     // welcome: a few toys drift about behind the logo; they shrink away once the tour starts
     const k = started ? Math.max(0, 1 - (clock.elapsedTime - startedAt) / 1.1) : 1;
     floaters.group.scale.setScalar(Math.max(0.0001, ease(k))); if (started && k <= 0) floaters.group.visible = false;
-    floaters.update(s);
+    floaters.update(s, cam.aspect);
     cam.position.set(0, 0, 430); cam.lookAt(0, 0, 0); cam.zoom = 1; cam.clearViewOffset(); cam.updateProjectionMatrix();
     renderer.render(scene, cam);
   } else renderer.clear();

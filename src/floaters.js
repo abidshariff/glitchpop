@@ -57,7 +57,9 @@ export function buildFloaters() {
   }
   return {
     group,
-    update(t) { for (const o of list) {
-      if (o.legs) o.legs.forEach((l, i) => { l.rotation.z = Math.sin(t * 1.6 + i * 0.8 + o.ph) * 0.22; }); o.h.position.set(o.x + Math.sin(t * o.f + o.ph) * o.ax, o.y + Math.cos(t * o.f * 0.8 + o.ph) * o.ay, o.z); o.h.rotation.set(o.tilt + t * 0.12 * o.spin, t * 0.35 * o.spin + o.ph, Math.sin(t * 0.3 + o.ph) * 0.2 * o.spin); } },
+    update(t, aspect = 1.6) {
+      const kx = Math.min(1, aspect / 1.6);   // narrow screens: pull the toys in so they stay on screen
+      for (const o of list) {
+      if (o.legs) o.legs.forEach((l, i) => { l.rotation.z = Math.sin(t * 1.6 + i * 0.8 + o.ph) * 0.22; }); o.h.position.set(o.x * kx + Math.sin(t * o.f + o.ph) * o.ax, o.y + Math.cos(t * o.f * 0.8 + o.ph) * o.ay, o.z); o.h.rotation.set(o.tilt + t * 0.12 * o.spin, t * 0.35 * o.spin + o.ph, Math.sin(t * 0.3 + o.ph) * 0.2 * o.spin); } },
   };
 }

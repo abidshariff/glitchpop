@@ -20,7 +20,7 @@ export function mountMenu(host: HTMLElement, items: MenuItem[], onSelect: (i: nu
     return <Floating3DMenu busy={b} doorOpen={d} items={items} activeIndex={a} onSelect={onSelect} layout="grid" minSlots={3} />;
   }
   // keep the whole printer on screen on short windows
-  const fit = () => { const k = Math.min(1.3, (innerHeight - 230) / 500); host.style.transform = `translate(-50%,-50%) scale(${Math.max(0.6, k)})`; host.dispatchEvent(new Event('fit')); };
+  const fit = () => { const k = Math.min(1.3, (innerHeight - 230) / 500, (innerWidth - 16) / 470); host.style.transform = `translate(-50%,-50%) scale(${Math.max(0.6, k)})`; host.dispatchEvent(new Event('fit')); };
   fit(); addEventListener('resize', fit);
   createRoot(host).render(<Menu />);
   return { setDoorOpen(o: boolean) { if (o !== doorOpen) { doorOpen = o; listeners.forEach(l => l()); } }, setBusy(b: boolean) { if (b !== busy) { busy = b; listeners.forEach(l => l()); } }, setActive(i: number) { if (i !== active) { active = i; listeners.forEach(l => l()); } } };
