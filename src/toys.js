@@ -353,12 +353,43 @@ async function buildDonut() {
   };
 }
 
+async function buildSpiral() {
+  // The taller, narrower spiral (green) is the inner piece; the shorter, wider one (orange) is the shell it screws through.
+  const [gInner, gShell] = await Promise.all([loadGeometry('cono_outer'), loadGeometry('cono_inner')]);
+  const inner = mesh(gInner, 0x1f7a3a, 0.5), shell = mesh(gShell, 0xff7a1a, 0.5);
+  const BASE = 39;                                   // both pieces are centred on the same height when nested
+  shell.position.y = BASE; inner.position.y = BASE;
+  const slide = new THREE.Group(); slide.add(inner);   // slide.position.y / rotation.y move the inner spiral as a screw
+  const model = new THREE.Group(); model.add(shell, slide);
+  const spin = new THREE.Group(); spin.add(model);
+  const root = new THREE.Group(); root.add(spin);
+  const css = n => '#' + n.toString(16).padStart(6, '0');
+  const v = (a, b, accent) => ({ accent, swatch: [css(a), css(b)], colors: { shell: a, inner: b } });
+  const K = THREE.MathUtils.degToRad(5.4);              // the blades twist 5.4° per unit of height, so sliding along them = one full turn per ~66 units
+  const U = 70, LOOP_S = 12;
+  const sm = x => { x = Math.min(1, Math.max(0, x)); return x * x * (3 - 2 * x); };
+  return {
+    root, spin, mats: [inner.material, shell.material],
+    roles: { inner: inner.material, shell: shell.material },
+    swatchShape: 'wide',
+    variants: [v(0xff7a1a, 0x1f7a3a, '#ff9a4a'), v(0xe5231a, 0xf4f4f4, '#ff6a4d'), v(0x1f78d1, 0xff7a1a, '#4f9be8')],
+    natural: 156, anim: 156, animCentre: 78,
+    update(s, animated) {
+      const t = animated ? ((s % LOOP_S) + LOOP_S) % LOOP_S : 0;
+      // rest -> the inner spiral screws up and out through the shell (one full 360° twist) -> hovers -> screws back through -> rest
+      const up = sm((t - 0.8) / 4.2) - sm((t - 6.4) / 4.2);
+      slide.position.y = U * up; slide.rotation.y = K * U * up;
+    },
+  };
+}
+
 // Names shown in the cart for each colour option (same order as the swatch buttons)
 export const COLOR_NAMES = {
   wand: ['Black & Green', 'Black & White', 'White & Black'],
   egg: ['Green', 'Pink', 'Red', 'White'],
   star: ['Red', 'Orange', 'Green'],
   donut: ['Orange', 'Pink', 'Green', 'Brown'],
+  spiral: ['Orange & Green', 'Red & White', 'Blue & Orange'],
 };
 
 export const TOYS = [
@@ -374,4 +405,7 @@ export const TOYS = [
   { id: 'donut', name: 'Squishy Spiral Donut', short: 'Spiral Donut',
     tag: '', blurb: '',
     build: buildDonut, duration: 10, price: 5, plateHeight: 120, demoHeight: 110, thumb: { cy: 67, h: 112, t: 1 } },
+  { id: 'spiral', name: 'Conoidal Spiral Fidget', short: 'Spiral Fidget',
+    tag: '', blurb: '',
+    build: buildSpiral, duration: 12, price: 8, plateHeight: 130, demoHeight: 110, thumb: { cy: 39, h: 80, t: 0 } },
 ];

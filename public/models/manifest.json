@@ -145,5 +145,15 @@
     "r": 70.0
    }
   ]
+ },
+ "cono_outer": {
+  "file": "cono_outer.bin",
+  "vertices": 100018,
+  "indices": 600096
+ },
+ "cono_inner": {
+  "file": "cono_inner.bin",
+  "vertices": 36968,
+  "indices": 221808
  }
 }
