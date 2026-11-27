@@ -605,12 +605,75 @@ async function buildPass() {
 }
 const PASS_DIR = 1;
 
+async function buildKatana() {
+  // A fidget katana: the handle hides a stack of four nested curved blade strips. They slide out of the guard end one after
+  // another like a telescope, and the blade curves like a real katana as it leaves the handle.
+  const [gh, gc, ...gb] = await Promise.all(['kt_handle', 'kt_cap', 'kt_b0', 'kt_b1', 'kt_b2', 'kt_b3'].map(n => loadGeometry(n)));
+  const ORANGE = 0xff7a1a, RED = 0xe5231a;
+  const handle = mesh(gh, ORANGE, 0.42), cap = mesh(gc, ORANGE, 0.42);
+  const bladeMat = new THREE.MeshStandardMaterial({ color: ORANGE, roughness: 0.35, metalness: 0.1, side: THREE.DoubleSide });
+  const blades = gb.map(g => {
+    const rest = new Float32Array(g.attributes.position.array), restN = new Float32Array(g.attributes.normal.array);
+    const geo = g.clone(); geo.attributes.position.setUsage(THREE.DynamicDrawUsage); geo.attributes.normal.setUsage(THREE.DynamicDrawUsage);
+    const m = new THREE.Mesh(geo, bladeMat); m.frustumCulled = false;
+    return { m, geo, rest, restN };
+  });
+  // model axis: y runs along the handle. The guard is at y = -89 (blade exits there), the pommel cap at y = +89.
+  const GUARD = -89.3, S = 52, KAPPA = 0.0042;     // S = how far each blade sticks out past the one outside it; KAPPA = blade curvature (1/mm)
+  cap.position.y = 91;
+  const model = new THREE.Group(); model.add(handle, cap, ...blades.map(b => b.m));
+  const flip = new THREE.Group(); flip.add(model); flip.rotation.set(0, Math.PI / 2, Math.PI);   // pommel down, blade up, blade width facing sideways
+  flip.position.y = 93;
+  const tilt = new THREE.Group(); tilt.add(flip); tilt.rotation.z = -0.22;
+  const spin = new THREE.Group(); spin.add(tilt);
+  const root = new THREE.Group(); root.add(spin);
+  let lastE = -1;
+  function bend(e) {
+    if (Math.abs(e - lastE) < 1e-5) return; lastE = e;
+    blades.forEach((b, k) => {
+      const off = e * S * (3 - k), P = b.geo.attributes.position.array, N = b.geo.attributes.normal.array, R = b.rest, RN = b.restN;
+      for (let i = 0; i < R.length; i += 3) {
+        const y = R[i + 1] - off, d = GUARD - y;                       // d = distance past the guard
+        let nx = RN[i], ny = RN[i + 1], nz = RN[i + 2];
+        if (d <= 0) { P[i] = R[i]; P[i + 1] = y; P[i + 2] = R[i + 2]; }
+        else {
+          const ph = KAPPA * d, c = Math.cos(ph), sn = Math.sin(ph), z0 = R[i + 2], rr = 1 / KAPPA;
+          // arc in the (y, z) plane, leaving the guard heading -y and curving towards +z; z0 is the offset across the blade
+          const yc = GUARD - rr * sn, zc = rr * (1 - c);
+          P[i] = R[i]; P[i + 1] = yc - z0 * sn; P[i + 2] = zc + z0 * c;
+          const ny2 = ny * c - nz * sn, nz2 = ny * sn + nz * c; ny = ny2; nz = nz2;
+        }
+        N[i] = nx; N[i + 1] = ny; N[i + 2] = nz;
+      }
+      b.geo.attributes.position.needsUpdate = true; b.geo.attributes.normal.needsUpdate = true;
+    });
+  }
+  const css = n => '#' + n.toString(16).padStart(6, '0');
+  const v = (c, accent) => ({ accent, swatch: [css(c)], colors: { body: c, cap: c, blade: c } });
+  const LOOP_S = 12, sm = x => { x = Math.min(1, Math.max(0, x)); return x * x * (3 - 2 * x); };
+  bend(0);
+  return {
+    root, spin, mats: [handle.material, cap.material, bladeMat],
+    roles: { body: handle.material, cap: cap.material, blade: bladeMat },
+    swatchShape: 'square',
+    variants: [v(ORANGE, '#ff9a4a'), v(RED, '#ff6a4d')],
+    natural: 340, anim: 340, animCentre: 170,
+    update(s, animated) {
+      if (!animated) { bend(0.85); spin.rotation.y = 0; return; }
+      const t = ((s % LOOP_S) + LOOP_S) % LOOP_S;
+      bend(sm((t - 1) / 3.2) - sm((t - 8) / 3));        // slide out, hold, slide back in
+      spin.rotation.y = 0.15 + 0.35 * Math.sin(s * 2 * Math.PI / LOOP_S);
+    },
+  };
+}
+
 // Names shown in the cart for each colour option (same order as the swatch buttons)
 export const COLOR_NAMES = {
   wand: ['Black & Green', 'Black & White', 'White & Black'],
   egg: ['Green', 'Pink', 'Red', 'White'],
   star: ['Red', 'Orange', 'Green'],
   donut: ['Orange', 'Pink', 'Green', 'Brown'],
+  katana: ['Orange', 'Red'],
   pass: ['Black & White', 'Black', 'White'],
   bird: ['Yellow', 'Pink', 'Red'],
   snake: ['Pink', 'Blue'],
@@ -646,4 +709,7 @@ export const TOYS = [
   { id: 'pass', name: 'Impossible Passthrough', short: 'Passthrough',
     tag: '', blurb: '',
     build: buildPass, duration: 12, price: 5, plateHeight: 126, demoHeight: 110, thumb: { cy: 30, h: 76, t: 0 } },
+  { id: 'katana', name: 'Dragonite Katana', short: 'Katana',
+    tag: '', blurb: '',
+    build: buildKatana, duration: 12, price: 15, plateHeight: 132, demoHeight: 110, thumb: { cy: 165, h: 290, t: 0 } },
 ];
