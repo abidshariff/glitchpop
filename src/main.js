@@ -218,9 +218,38 @@ function startTour() {
   menuHost.style.visibility = 'visible';
   const base = menuHost.style.transform;
   menuHost.animate([{ opacity: 0, transform: `${base} translateY(40px) scale(.9)` }, { opacity: 1, transform: base }], { duration: 1100, delay: 500, easing: 'cubic-bezier(.22,1,.36,1)', fill: 'backwards' });
-  setTimeout(() => menu.setDoorOpen(true), 1700);   // the door swings open once, then stays open
+  setTimeout(() => started && menu.setDoorOpen(true), 1700); bumpIdle();   // the door swings open once, then stays open
 }
 document.getElementById('tstart').onclick = startTour;
+
+// ── kiosk reset: after a quiet spell (or on demand) the cart is emptied and the page returns to the welcome screen ──
+const IDLE_S = params.has('idle') ? Number(params.get('idle')) : 90;
+let resetting = false;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+// order: product goes back in → door closes → printer slips away → welcome screen returns
+async function resetAll() {
+  if (resetting || !started) return; resetting = true; clearTimeout(idleTimer);
+  closeToy(); openDrawer(false);
+  for (const k of Object.keys(cart)) delete cart[k];
+  qtyOf.fill(1); payTab = 0;
+  items.forEach(it => { const v0 = it.toy.variants[0]; it.variant = 0; it.glow.set(v0.accent); for (const [r, hex] of Object.entries(v0.colors)) it.targets[r].set(hex); });
+  showCart();
+  while (prog > 0) await sleep(60);
+  await sleep(250); menu.setDoorOpen(false);
+  await sleep(1150);
+  const base = menuHost.style.transform;
+  await menuHost.animate([{ opacity: 1, transform: base }, { opacity: 0, transform: `${base} translateY(40px) scale(.9)` }], { duration: 800, easing: 'cubic-bezier(.5,0,.75,0)', fill: 'forwards' }).finished;
+  menuHost.style.visibility = 'hidden'; menuHost.getAnimations().forEach(an => an.cancel());
+  started = false; floaters.group.visible = true; floaters.group.scale.setScalar(1);
+  document.body.classList.add('intro'); document.getElementById('twel').classList.add('on');
+  resetting = false;
+}
+window.__reset = resetAll;
+let idleTimer = 0;
+const bumpIdle = () => { clearTimeout(idleTimer); if (started && !resetting && IDLE_S > 0) idleTimer = setTimeout(resetAll, IDLE_S * 1000); };
+['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart'].forEach(ev => addEventListener(ev, bumpIdle, { passive: true }));
+document.getElementById('startover').onclick = resetAll;
+addEventListener('keydown', e => { if (e.key === 'Home' && e.shiftKey) resetAll(); });
 function frame() {
   const dt = Math.min(clock.getDelta(), 0.05), s = FROZEN ?? clock.elapsedTime;
   const goal = focus >= 0 ? 1 : 0;
@@ -229,9 +258,9 @@ function frame() {
   const u = ease(prog);
   if (focus >= 0 && prog >= 1 && !uiOn) { uiOn = true; setUI(true); }
   const busy = focus >= 0 || prog > 0;
-  menuHost.style.pointerEvents = busy || !started ? 'none' : ''; menu.setBusy(busy);
+  menuHost.style.pointerEvents = busy || !started || resetting ? 'none' : ''; menu.setBusy(busy);
   menuHost.style.filter = u > 0.001 ? `blur(${(u * 9).toFixed(2)}px) brightness(${(1 - 0.14 * u).toFixed(3)})` : '';
-  const introK = started ? Math.min(1, Math.max(0, (clock.elapsedTime - startedAt - 1.7) / 0.8)) : 0;
+  const introK = started && !resetting ? Math.min(1, Math.max(0, (clock.elapsedTime - startedAt - 1.7) / 0.8)) : 0;
   chooseEl.style.opacity = introK * (1 - Math.min(1, u * 2.5));
   const kc = 1 - Math.exp(-dt * 10);
   items.forEach((it, i) => {

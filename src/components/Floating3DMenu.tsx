@@ -60,7 +60,7 @@ export function Floating3DMenu({ items, activeIndex, onSelect, className = '', m
   const enter = () => { if (busy || grid) return; window.clearTimeout(closeTimer.current); setOpen(true); };
   const leave = () => { if (grid) return; window.clearTimeout(closeTimer.current); closeTimer.current = window.setTimeout(() => { setOpen(false); setReady(false); }, 350); };
   useEffect(() => () => window.clearTimeout(closeTimer.current), []);
-  useEffect(() => { if (doorOpen) setOpen(true); }, [doorOpen]);
+  useEffect(() => { setOpen(doorOpen); if (!doorOpen) setReady(false); }, [doorOpen]);
   const ref = useRef<HTMLDivElement>(null);
   const pick = (e: ReactPointerEvent) => {
     if (!ready) return;
