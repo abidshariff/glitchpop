@@ -405,9 +405,13 @@ async function buildDino() {
   const root = new THREE.Group(); root.add(spin);
   const css = n => '#' + n.toString(16).padStart(6, '0');
   const v = (a, b, accent) => ({ accent, swatch: [css(a), css(b)], colors: { body: a, wheels: b } });
-  const R = 25, L = 30, LOOP_S = 10;
+  const R = 25, L = 52, LOOP_S = 12;
   const sm = x => { x = Math.min(1, Math.max(0, x)); return x * x * (3 - 2 * x); };
-  const xAt = t => { t = ((t % LOOP_S) + LOOP_S) % LOOP_S; return -L + 2 * L * (sm((t - 1) / 3.6) - sm((t - 5.4) / 3.6)); };
+  // path: stand still -> flicked, it spins round on the spot -> rolls away -> wobbles to a stop -> turns round -> rolls back -> turns to face the front
+  const pC = t => L * sm((t - 2.2) / 2.8), pF = t => L * sm((t - 7.2) / 2.8);
+  const pos = t => pC(t) - pF(t), dist = t => pC(t) + pF(t);          // dist = how far the wheels have rolled forward
+  const yawAt = t => 2 * Math.PI * sm((t - 1) / 1.3) + Math.PI * sm((t - 6) / 1.2) + Math.PI * sm((t - 10.2) / 1.3);
+  const wob = (t, t0) => (t > t0 ? 0.2 * Math.exp(-1.7 * (t - t0)) * Math.sin(9 * (t - t0)) : 0);   // it rocks back and forth after stopping
   return {
     root, spin, mats: [dino, wheel1, wheel2, weight1, weight2, axle, clip].map(m => m.material),
     roles: { body: dino.material, wheels: wheel1.material },
@@ -415,13 +419,14 @@ async function buildDino() {
     variants: [v(GREEN, BLUE, '#4fd17a'), v(RD, BK, '#ff6a4d'), v(GREEN, WH, '#4fd17a')],
     natural: 90, anim: 90, animCentre: 45,
     update(s, animated) {
-      const t = animated ? s : 0, h = 0.08;
-      const x = animated ? xAt(t) : 0;
-      const acc = animated ? (xAt(t + h) - 2 * x + xAt(t - h)) / (h * h) : 0;
-      travel.position.x = x;
-      const roll = -x / R; wheel1.rotation.z = roll; wheel2.rotation.z = roll;      // rolling without slipping
-      pend.rotation.z = THREE.MathUtils.clamp(acc * 0.0085, -0.3, 0.3);                // the pendulum lags behind when speeding up
-      spin.rotation.y = animated ? Math.sin(s * 2 * Math.PI / LOOP_S) * 0.35 : 0.25;
+      if (!animated) { travel.position.x = 0; wheel1.rotation.z = wheel2.rotation.z = 0; pend.rotation.z = 0; spin.rotation.y = 0.3; return; }
+      const t = ((s % LOOP_S) + LOOP_S) % LOOP_S, h = 0.08;
+      travel.position.x = pos(t) - L / 2;
+      const roll = -dist(t) / R; wheel1.rotation.z = roll; wheel2.rotation.z = roll;      // rolling without slipping
+      const acc = (dist(t + h) - 2 * dist(t) + dist(t - h)) / (h * h);
+      const flick = t > 1 && t < 1.5 ? -0.25 * Math.sin(Math.PI * (t - 1) / 0.5) : 0;      // a little jolt when it is flicked
+      pend.rotation.z = THREE.MathUtils.clamp(acc * 0.0085, -0.3, 0.3) + wob(t, 5.0) + wob(t, 10.0) + flick;
+      spin.rotation.y = 0.3 + yawAt(t);
     },
   };
 }
@@ -454,5 +459,5 @@ export const TOYS = [
     build: buildSpiral, duration: 12, price: 5, plateHeight: 130, demoHeight: 110, thumb: { cy: 39, h: 80, t: 0 } },
   { id: 'dino', name: 'Dino Run Balancing Wheel', short: 'Dino Run',
     tag: '', blurb: '',
-    build: buildDino, duration: 10, price: 5, plateHeight: 118, demoHeight: 110, thumb: { cy: 31, h: 96, t: 0 } },
+    build: buildDino, duration: 12, price: 5, plateHeight: 118, demoHeight: 110, thumb: { cy: 31, h: 96, t: 0 } },
 ];
