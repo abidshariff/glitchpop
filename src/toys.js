@@ -373,5 +373,5 @@ export const TOYS = [
     build: buildStar, duration: 12, price: 10, plateHeight: 138, demoHeight: 110, thumb: { cy: 120, h: 262, t: 0 } },
   { id: 'donut', name: 'Squishy Spiral Donut', short: 'Spiral Donut',
     tag: '', blurb: '',
-    build: buildDonut, duration: 10, price: 10, plateHeight: 120, demoHeight: 110, thumb: { cy: 67, h: 112, t: 1 } },
+    build: buildDonut, duration: 10, price: 5, plateHeight: 120, demoHeight: 110, thumb: { cy: 67, h: 112, t: 1 } },
 ];
