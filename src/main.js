@@ -96,18 +96,15 @@ let prog = 0;            // 0 = inside the printer … 1 = presented
 let uiOn = false, pickedAt = 0;
 const EMERGE_S = 1.5, ease = k => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2);
 const menuHost = document.getElementById('menu-root'), chooseEl = document.getElementById('choose');
-const setUI = on => [document.getElementById('info'), document.getElementById('swatches'), document.getElementById('buy')].forEach(e => e.classList.toggle('out', !on));
+const setUI = on => [document.getElementById('info'), document.getElementById('swatches'), document.getElementById('buy'), document.getElementById('closebtn')].forEach(e => e.classList.toggle('out', !on));
 function selectToy(i) {
   if (focus >= 0 || prog > 0) return;
   focus = shown = i; pickedAt = performance.now(); uiOn = false; items[i].t0 = clock.elapsedTime;   // animation starts from its first frame as it comes out
   document.getElementById('name').textContent = TOYS[i].name; renderSwatches(i); showBuy(); setUI(false);
 }
 function closeToy() { if (focus < 0) return; focus = -1; uiOn = false; setUI(false); }
-document.addEventListener('click', e => {
-  if (focus < 0 || performance.now() - pickedAt < 500) return;
-  if (e.target.closest('#info,#swatches,#buy,#cart,#drawer,#scrim,.brand,#menu-root')) return;
-  closeToy();
-});
+// the product only closes from the Close button (or Esc), so a stray tap elsewhere never dismisses it
+document.getElementById('closebtn').onclick = closeToy;
 addEventListener('keydown', e => { if (e.key === 'Escape' && focus >= 0 && !drawer.classList.contains('on')) closeToy(); });
 
 // ── floating glass dock: little picture of each toy ──

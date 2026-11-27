@@ -117,6 +117,11 @@
   /* menu host (React + Tailwind component renders here) */
   #menu-root{position:fixed;z-index:2;left:50%;top:47%;transform:translate(-50%,-50%);transform-origin:50% 50%;will-change:filter}
   #menu-root.locked,#menu-root.locked *{pointer-events:none!important;cursor:default!important}
+  .closebtn{all:unset;cursor:pointer;position:fixed;z-index:9;top:clamp(70px,8vw,86px);right:clamp(16px,3vw,44px);display:flex;align-items:center;gap:8px;height:40px;padding:0 16px 0 13px;border-radius:999px;
+    background:rgba(255,255,255,.82);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border:1px solid rgba(20,22,32,.08);box-shadow:0 12px 26px -16px rgba(20,22,40,.4);
+    font-size:13px;font-weight:600;color:#14161f;letter-spacing:.02em;transition:opacity .4s,transform .25s,background .2s}
+  .closebtn:hover{background:#fff;transform:translateY(-1px)}.closebtn:focus-visible{outline:2px solid #14161f;outline-offset:3px}
+  .closebtn.out{opacity:0;pointer-events:none;transform:translateY(-6px)}
   .choose{opacity:0;top:-100px;transition:opacity .5s;position:fixed;z-index:2;left:50%;transform:translateX(-50%);margin:0;white-space:nowrap;font-size:13px;font-weight:500;letter-spacing:.42em;text-transform:uppercase;color:#8b90a0;pointer-events:none}
   .info.out,.buy.out,.swatches.out{pointer-events:none}
   .info,.buy{left:50%}
@@ -190,6 +195,7 @@
   <button type="button" class="startover" id="startover">Clear cart &amp; start over</button>
 </aside>
 
+<button type="button" class="closebtn out" id="closebtn" aria-label="Close product"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg><span>Close</span></button>
 <aside class="info out" id="info"><h2 id="name"></h2></aside>
 <div class="swatches out" id="swatches" role="group" aria-label="Colour"></div>
 
