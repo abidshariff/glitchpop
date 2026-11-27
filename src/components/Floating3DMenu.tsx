@@ -146,11 +146,23 @@ export function Floating3DMenu({ items, activeIndex, onSelect, className = '', m
                       borderTop: '0.5px solid rgba(240,228,205,.3)', borderBottom: '0.5px solid rgba(0,0,0,.5)',
                       boxShadow: '0 2px 4px -2px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,245,225,.1)',
                     }} />
+                    <div aria-hidden style={{ position: 'absolute', left: 6, right: 6, top: '100%', height: 16, pointerEvents: 'none', zIndex: 2,
+                      background: 'linear-gradient(180deg, rgba(0,0,0,.5), rgba(0,0,0,0))' }} />
                   </div>
                 );
               })}
               </div>
-                          </div>
+              {/* depth: dark walls closing in (vignette), a cool light from the roof, and a soft floor shadow */}
+              <div aria-hidden style={{ position: 'absolute', inset: 0, zIndex: 3, pointerEvents: 'none', borderRadius: 14,
+                background: [
+                  'radial-gradient(120% 90% at 50% 38%, transparent 42%, rgba(0,0,0,.55) 100%)',
+                  'linear-gradient(180deg, rgba(190,215,255,.13) 0%, rgba(190,215,255,.04) 22%, transparent 46%)',
+                  'linear-gradient(0deg, rgba(0,0,0,.5) 0%, transparent 16%)',
+                ].join(','),
+                boxShadow: 'inset 0 0 22px 4px rgba(0,0,0,.7), inset 0 1px 0 rgba(200,220,255,.18)' }} />
+              <div aria-hidden style={{ position: 'absolute', left: 0, right: 0, top: HEAD, height: 22, zIndex: 2, pointerEvents: 'none',
+                background: 'linear-gradient(180deg, rgba(0,0,0,.55), transparent)' }} />
+            </div>
 
             {/* glass door, hinged on the left and swung open */}
             <motion.div aria-hidden
@@ -161,7 +173,7 @@ export function Floating3DMenu({ items, activeIndex, onSelect, className = '', m
               style={{
                 position: 'absolute', inset: 0, pointerEvents: 'none', borderRadius: 14, transformOrigin: '0% 50%',
                 border: '5px solid #aeb3ba', backfaceVisibility: 'visible',
-                background: 'transparent',
+                background: 'linear-gradient(112deg, rgba(255,255,255,.13) 0%, rgba(255,255,255,.04) 24%, rgba(255,255,255,0) 40%, rgba(255,255,255,.06) 58%, rgba(255,255,255,0) 70%)',
                 boxShadow: 'inset 0 0 0 1px rgba(255,255,255,.4)',
               }}>
               <span style={{ position: 'absolute', right: -9, top: '50%', width: 13, height: 96, marginTop: -48, borderRadius: 7, background: 'linear-gradient(90deg,#f4f5f7,#c9ccd2 60%,#a9adb5)', boxShadow: '0 2px 4px rgba(0,0,0,.45), inset 0 1px 0 #fff' }} />
@@ -263,7 +275,9 @@ function Bay({ idx, item, lit: litProp, reduce, ready, onSelect, slot, grid = fa
       }} />
       <span style={{ position: 'relative', width: img, height: img, flex: 'none', display: 'grid', placeItems: 'center',
         transition: 'filter .5s, opacity .5s, transform .4s', transform: grid && hv && ready && !busy ? 'scale(1.08)' : 'none', filter: lit || grid ? 'none' : 'brightness(.62) saturate(.75)', opacity: lit || grid ? 1 : 0.92 }}>
-        <img src={item.image} alt="" draggable={false} style={{ width: img, height: img, objectFit: 'contain', filter: 'drop-shadow(0 5px 6px rgba(0,0,0,.45))' }} />
+        <span aria-hidden style={{ position: 'absolute', left: '14%', right: '14%', bottom: -2, height: 9, borderRadius: '50%', background: 'radial-gradient(closest-side, rgba(0,0,0,.65), transparent)', filter: 'blur(1.5px)' }} />
+        <img src={item.image} alt="" draggable={false} style={{ position: 'relative', width: img, height: img, objectFit: 'contain', filter: 'drop-shadow(0 5px 6px rgba(0,0,0,.45))',
+          WebkitBoxReflect: 'below -6px linear-gradient(transparent 74%, rgba(255,255,255,.14))' } as CSSProperties} />
       </span>
       {!grid && <span style={{
         position: 'relative', fontSize: 11.5, fontWeight: 500, letterSpacing: '.03em', lineHeight: 1.25, transition: 'color .5s',
