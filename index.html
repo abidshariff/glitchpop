@@ -117,7 +117,7 @@
   /* menu host (React + Tailwind component renders here) */
   #menu-root{position:fixed;z-index:2;left:50%;top:47%;transform:translate(-50%,-50%);transform-origin:50% 50%;will-change:filter}
   #menu-root.locked,#menu-root.locked *{pointer-events:none!important;cursor:default!important}
-  .choose{transition:opacity .5s;position:fixed;z-index:2;left:50%;transform:translateX(-50%);margin:0;white-space:nowrap;font-size:13px;font-weight:500;letter-spacing:.42em;text-transform:uppercase;color:#8b90a0;pointer-events:none}
+  .choose{opacity:0;top:-100px;transition:opacity .5s;position:fixed;z-index:2;left:50%;transform:translateX(-50%);margin:0;white-space:nowrap;font-size:13px;font-weight:500;letter-spacing:.42em;text-transform:uppercase;color:#8b90a0;pointer-events:none}
   .info.out,.buy.out,.swatches.out{pointer-events:none}
   .info,.buy{left:50%}
   .swatches{left:calc(50% + clamp(230px,20vw,320px))}
