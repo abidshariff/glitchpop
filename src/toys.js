@@ -549,9 +549,12 @@ async function buildBird() {
     roles: { bird: bird.material },
     swatchShape: 'square',
     variants: [v(YELLOW, '#e4f24a'), v(PINK, '#ff8fb3'), v(RED, '#ff6a4d')],
-    natural: 130, anim: 130, animCentre: 65,
+    natural: 162, anim: 162, animCentre: 81,
     update(s, animated) {
-      if (!animated) { rock.rotation.set(0, 0.5, 0); spin.rotation.y = 0.3; return; }
+      if (!animated) {   // menu icon: just the bird, facing the viewer, a little banked so it reads as 3D
+        stem.visible = false; rock.rotation.set(0.45, Math.PI + 0.3, 0.12, "YXZ"); model.rotation.set(0, 0, 0); spin.rotation.y = 0; return;
+      }
+      stem.visible = true;
       const t = ((s % LOOP_S) + LOOP_S) % LOOP_S;
       // From the video: a flick sets the bird spinning on the branch tip. It turns round and round, slowing down, and leans over
       // (banks) towards one side as it goes, so the wings tip up and down as it comes round. A second flick repeats it.
@@ -605,5 +608,5 @@ export const TOYS = [
     build: buildSnake, duration: 12, price: 6, plateHeight: 128, demoHeight: 110, thumb: { cy: 78, h: 215, t: 0 } },
   { id: 'bird', name: 'Balancing Bird', short: 'Balancing Bird',
     tag: '', blurb: '',
-    build: buildBird, duration: 12, price: 3, plateHeight: 128, demoHeight: 110, thumb: { cy: 65, h: 150, t: 0 } },
+    build: buildBird, duration: 12, price: 3, plateHeight: 128, demoHeight: 110, thumb: { cy: 98, h: 112, t: 0 } },
 ];
