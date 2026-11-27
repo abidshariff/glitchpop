@@ -155,5 +155,40 @@
   "file": "cono_inner.bin",
   "vertices": 36968,
   "indices": 221808
+ },
+ "dr_dino": {
+  "file": "dr_dino.bin",
+  "vertices": 574,
+  "indices": 3480
+ },
+ "dr_wheel": {
+  "file": "dr_wheel.bin",
+  "vertices": 1954,
+  "indices": 11796
+ },
+ "dr_wheel2": {
+  "file": "dr_wheel2.bin",
+  "vertices": 1954,
+  "indices": 11796
+ },
+ "dr_weight": {
+  "file": "dr_weight.bin",
+  "vertices": 456,
+  "indices": 2760
+ },
+ "dr_weight2": {
+  "file": "dr_weight2.bin",
+  "vertices": 882,
+  "indices": 5292
+ },
+ "dr_axle": {
+  "file": "dr_axle.bin",
+  "vertices": 325,
+  "indices": 1938
+ },
+ "dr_clip": {
+  "file": "dr_clip.bin",
+  "vertices": 192,
+  "indices": 1140
  }
 }

@@ -384,12 +384,55 @@ async function buildSpiral() {
   };
 }
 
+async function buildDino() {
+  // A flat pixel dino rides on two geared wheels. The dino, the two weights and the axle hang together like a pendulum,
+  // so the wheels roll underneath and the dino stays upright, leaning slightly as it speeds up and slows down.
+  const names = ['dr_dino', 'dr_wheel', 'dr_wheel2', 'dr_weight', 'dr_weight2', 'dr_axle', 'dr_clip'];
+  const [gd, gw1, gw2, gk1, gk2, ga, gc] = await Promise.all(names.map(n => loadGeometry(n)));
+  const GREEN = 0x2fbf5a, BLUE = 0x1f78d1, BK = 0x17171c, RD = 0xe5231a, WH = 0xf4f4f4;
+  const dino = mesh(gd, GREEN, 0.5), wheel1 = mesh(gw1, BLUE, 0.5), wheel2 = mesh(gw2, BLUE, 0.5);
+  const weight1 = mesh(gk1, GREEN, 0.5), weight2 = mesh(gk2, GREEN, 0.5), axle = mesh(ga, GREEN, 0.5), clip = mesh(gc, GREEN, 0.5);
+  dino.material.side = THREE.DoubleSide;
+  const PIV = 1.97;                                   // the axle height: the pendulum hangs from here
+  const place = (m, x, y, z) => m.position.set(x, y, z);
+  place(dino, 2.33, 19.92 - PIV, 6.5); place(weight1, 0, -7.25 - PIV, 10); place(weight2, 0, -7.25 - PIV, 6);
+  place(axle, 0, 0, 9.1); place(clip, 0, 0.08 - PIV, -4.6);
+  const pend = new THREE.Group(); pend.position.set(0, PIV, 0); pend.add(dino, weight1, weight2, axle, clip);
+  place(wheel1, 0, -0.01, -2.25); place(wheel2, 0, -0.01, 15.25);
+  const body = new THREE.Group(); body.add(pend, wheel1, wheel2); body.position.y = 25;   // wheel bottoms touch y = 0
+  const travel = new THREE.Group(); travel.add(body);
+  const spin = new THREE.Group(); spin.add(travel);
+  const root = new THREE.Group(); root.add(spin);
+  const css = n => '#' + n.toString(16).padStart(6, '0');
+  const v = (a, b, accent) => ({ accent, swatch: [css(a), css(b)], colors: { body: a, wheels: b } });
+  const R = 25, L = 30, LOOP_S = 10;
+  const sm = x => { x = Math.min(1, Math.max(0, x)); return x * x * (3 - 2 * x); };
+  const xAt = t => { t = ((t % LOOP_S) + LOOP_S) % LOOP_S; return -L + 2 * L * (sm((t - 1) / 3.6) - sm((t - 5.4) / 3.6)); };
+  return {
+    root, spin, mats: [dino, wheel1, wheel2, weight1, weight2, axle, clip].map(m => m.material),
+    roles: { body: dino.material, wheels: wheel1.material },
+    swatchShape: 'wide',
+    variants: [v(GREEN, BLUE, '#4fd17a'), v(RD, BK, '#ff6a4d'), v(GREEN, WH, '#4fd17a')],
+    natural: 90, anim: 90, animCentre: 45,
+    update(s, animated) {
+      const t = animated ? s : 0, h = 0.08;
+      const x = animated ? xAt(t) : 0;
+      const acc = animated ? (xAt(t + h) - 2 * x + xAt(t - h)) / (h * h) : 0;
+      travel.position.x = x;
+      const roll = -x / R; wheel1.rotation.z = roll; wheel2.rotation.z = roll;      // rolling without slipping
+      pend.rotation.z = THREE.MathUtils.clamp(acc * 0.0085, -0.3, 0.3);                // the pendulum lags behind when speeding up
+      spin.rotation.y = animated ? Math.sin(s * 2 * Math.PI / LOOP_S) * 0.35 : 0.25;
+    },
+  };
+}
+
 // Names shown in the cart for each colour option (same order as the swatch buttons)
 export const COLOR_NAMES = {
   wand: ['Black & Green', 'Black & White', 'White & Black'],
   egg: ['Green', 'Pink', 'Red', 'White'],
   star: ['Red', 'Orange', 'Green'],
   donut: ['Orange', 'Pink', 'Green', 'Brown'],
+  dino: ['Green & Blue', 'Red & Black', 'Green & White'],
   spiral: ['Black & Red', 'Black', 'White', 'Red', 'Black & White'],
 };
 
@@ -409,4 +452,7 @@ export const TOYS = [
   { id: 'spiral', name: 'Conoidal Spiral Fidget', short: 'Spiral Fidget',
     tag: '', blurb: '',
     build: buildSpiral, duration: 12, price: 5, plateHeight: 130, demoHeight: 110, thumb: { cy: 39, h: 80, t: 0 } },
+  { id: 'dino', name: 'Dino Run Balancing Wheel', short: 'Dino Run',
+    tag: '', blurb: '',
+    build: buildDino, duration: 10, price: 5, plateHeight: 118, demoHeight: 110, thumb: { cy: 31, h: 96, t: 0 } },
 ];
