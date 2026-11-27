@@ -295,7 +295,7 @@ function frame() {
     buyEl.style.top = rowUI ? BUY_TOP + 'px' : Math.min(innerHeight - 74, Math.max(R0 + 120, (1 - front.y) / 2 * innerHeight + 22)) + 'px';
     // Close sits on its own, just to the right of the buy bar (under it on narrow phones)
     { const br = buyEl.getBoundingClientRect(), cb = document.getElementById('closebtn');
-      if (innerWidth - br.right > 84) { cb.style.left = br.right + 14 + 'px'; cb.style.top = br.top + br.height / 2 - 17 + 'px'; }
+      if (innerWidth - br.right > 84) { cb.style.left = br.right + 16 + 'px'; cb.style.top = br.bottom - cb.offsetHeight - 6 + 'px';   /* same base line as the bar */ }
       else { cb.style.left = br.left + br.width / 2 - 24 + 'px'; cb.style.top = br.bottom + 4 + 'px'; } }
     renderer.render(scene, cam);
   } else if (floaters.group.visible) {
