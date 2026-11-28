@@ -600,9 +600,52 @@
   "vertices": 177577,
   "indices": 1065450
  },
- "ic_cream": {
-  "file": "ic_cream.bin",
-  "vertices": 286868,
-  "indices": 1721160
+ "ic_leaf0": {
+  "file": "ic_leaf0.bin",
+  "vertices": 34080,
+  "indices": 204480,
+  "angle": -2.4437796120660784
+ },
+ "ic_leaf1": {
+  "file": "ic_leaf1.bin",
+  "vertices": 39048,
+  "indices": 234288,
+  "angle": -1.6865053713236589
+ },
+ "ic_leaf2": {
+  "file": "ic_leaf2.bin",
+  "vertices": 36746,
+  "indices": 220476,
+  "angle": -0.9049800179739727
+ },
+ "ic_leaf3": {
+  "file": "ic_leaf3.bin",
+  "vertices": 35367,
+  "indices": 212190,
+  "angle": -0.105988217511461
+ },
+ "ic_leaf4": {
+  "file": "ic_leaf4.bin",
+  "vertices": 34480,
+  "indices": 206868,
+  "angle": 0.7102495437556376
+ },
+ "ic_leaf5": {
+  "file": "ic_leaf5.bin",
+  "vertices": 39543,
+  "indices": 237258,
+  "angle": 1.4452431348804797
+ },
+ "ic_leaf6": {
+  "file": "ic_leaf6.bin",
+  "vertices": 30432,
+  "indices": 182580,
+  "angle": 2.2785783848141477
+ },
+ "ic_leaf7": {
+  "file": "ic_leaf7.bin",
+  "vertices": 32395,
+  "indices": 194358,
+  "angle": 3.051545608474682
  }
 }

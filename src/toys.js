@@ -804,40 +804,55 @@ async function buildAlien() {
 }
 
 async function buildIce() {
-  // An ice-cream spinner: the waffle cone is the handle (point down), and the swirl of cream sits on top and spins on a pin.
-  const [gc, gm] = await Promise.all([loadGeometry('ic_cone'), loadGeometry('ic_cream')]);
+  // A pop-open ice-cream cone: the cream is 8 curled leaves. Closed, they form a swirl of cream; with a swish they screw out
+  // of the cone and fan out into a long feather, like the product photo.
+  const names = ['ic_cone', ...Array.from({ length: 8 }, (_, k) => 'ic_leaf' + k)];
+  const [gc, ...gl] = await Promise.all(names.map(n => loadGeometry(n)));
+  const man = (await manifest);
   const BLACK = 0x17171c, PINK = 0xff7fb3, RED = 0xe5231a, WHITE = 0xf6f1ea;
-  const cone = mesh(gc, BLACK, 0.5), cream = mesh(gm, PINK, 0.4);
+  const cone = mesh(gc, BLACK, 0.5);
   cone.position.y = 35.9;                                    // cone point on y = 0, its rim at y = 71.8
-  const creamG = new THREE.Group(); creamG.position.y = 71.8 + 27.5; creamG.add(cream);
-  const lift = new THREE.Group(); lift.add(creamG);
-  const model = new THREE.Group(); model.add(cone, lift);
-  const tilt = new THREE.Group(); tilt.add(model);
-  const spin = new THREE.Group(); spin.add(tilt);
+  const creamMat = new THREE.MeshStandardMaterial({ color: PINK, roughness: 0.4, metalness: 0, side: THREE.DoubleSide });
+  const leaves = gl.map((g, k) => { const m = new THREE.Mesh(g, creamMat); const holder = new THREE.Group(); holder.add(m); return { holder, m, a: man['ic_leaf' + k].angle }; });
+  const A0 = leaves[0].a;
+  const creamG = new THREE.Group(); creamG.position.y = 71.8 + 27.5; leaves.forEach(l => creamG.add(l.holder));
+  const model = new THREE.Group(); model.add(cone, creamG);
+  const swing = new THREE.Group(); swing.add(model); swing.position.y = 71.8; model.position.y = -71.8;   // swish pivots at the cone rim
+  const spin = new THREE.Group(); spin.add(swing);
   const root = new THREE.Group(); root.add(spin);
   const css = n => '#' + n.toString(16).padStart(6, '0');
   const v = (c, k, accent) => ({ accent, swatch: [css(c), css(k)], colors: { cone: c, cream: k } });
-  const LOOP_S = 10, W = 2 * Math.PI * 6;
-  const sm = x => { x = Math.min(1, Math.max(0, x)); return x * x * (3 - 2 * x); };
-  // two flicks per loop, in opposite directions: the cream spins up fast, then slows to a stop
-  const om = t => { const a = t - 0.6, b = t - 5.6; const f = (u, d) => (u < 0 || u > d ? 0 : sm(u / 0.35) * Math.exp(-0.7 * u) * (1 - sm((u - d + 1.2) / 1.2)));
-    return W * (f(a, 4.2) - f(b, 4.2)); };
-  const N = 3000, tab = new Float32Array(N + 1);
-  for (let i = 0, ang = 0; i <= N; i++) { tab[i] = ang; ang += om((i / N) * LOOP_S) * (LOOP_S / N); }
-  const angAt = t => { const f = (t / LOOP_S) * N, i = Math.min(N - 1, Math.floor(f)); return tab[i] + (tab[i + 1] - tab[i]) * (f - i); };
+  const LOOP_S = 9, sm = x => { x = Math.min(1, Math.max(0, x)); return x * x * (3 - 2 * x); };
+  const popOut = tau => (tau <= 0 ? 0 : 1 - Math.exp(-9 * tau) * (Math.cos(20 * tau) + 0.45 * Math.sin(20 * tau)));
+  const STEP = 8, FAN = 1.0;
+  function pose(u) {   // u: 0 = closed swirl, 1 = fully open feather
+    leaves.forEach((l, k) => {
+      const lag = Math.max(0, u - 0.04 * k * (u < 0.999 ? 1 : 0));
+      const e = Math.max(0, Math.min(1.12, lag));
+      l.holder.position.y = e * k * STEP;                               // each leaf slides out a bit further than the one before
+      l.holder.rotation.y = -(l.a - A0 + (l.a < A0 ? 2 * Math.PI : 0)) * e * FAN * 0.8 + e * 0.3 * k * 0.4;
+    });
+  }
+  pose(0);
   return {
-    root, spin, mats: [cone.material, cream.material],
-    roles: { cone: cone.material, cream: cream.material },
+    root, spin, mats: [cone.material, creamMat],
+    roles: { cone: cone.material, cream: creamMat },
     swatchShape: 'wide',
     variants: [v(BLACK, PINK, '#ff8fc0'), v(RED, WHITE, '#ff6a4d')],
-    natural: 134, anim: 134, animCentre: 63,
+    natural: 190, anim: 190, animCentre: 70,
     update(s, animated) {
-      if (!animated) { creamG.rotation.y = 0.5; lift.position.y = 0; tilt.rotation.set(0, 0, 0); spin.rotation.y = 0.3; return; }
-      const t = ((s % LOOP_S) + LOOP_S) % LOOP_S, w = Math.abs(om(t)) / W;
-      creamG.rotation.y = angAt(t);
-      lift.position.y = 1.4 * w;                                 // the cream lifts a hair off the cone while it spins fast
-      tilt.rotation.set(0.05 * w * Math.sin(s * 14), 0, 0.05 * w * Math.cos(s * 14));   // and wobbles on its pin
-      spin.rotation.y = 0.35 * Math.sin(s * 2 * Math.PI / LOOP_S);
+      if (!animated) { pose(0); swing.rotation.set(0, 0, 0); spin.rotation.y = 0.3; return; }
+      const t = ((s % LOOP_S) + LOOP_S) % LOOP_S;
+      // closed -> a swish: the whole cone whips over and the leaves pop open -> hold -> swish back and fold shut
+      let u = 0, ang = 0;
+      if (t < 0.9) { ang = 0.05 * Math.sin(t * 3); }
+      else if (t < 1.25) { ang = -0.9 * sm((t - 0.9) / 0.35); u = 0; }
+      else if (t < 5.4) { ang = -0.9 * 1 + 0.06 * Math.sin((t - 1.25) * 2); u = popOut(t - 1.15); ang = -0.9 + (t < 1.7 ? 0.3 * Math.sin((t - 1.25) * 7) * Math.exp(-(t - 1.25) * 4) : 0); }
+      else if (t < 6.1) { const p = (t - 5.4) / 0.7; u = 1 - sm(p); ang = -0.9 * (1 - sm(p)); }
+      else { u = 0; ang = 0; }
+      pose(u);
+      swing.rotation.z = ang;
+      spin.rotation.y = 0.25 * Math.sin(s * 2 * Math.PI / LOOP_S);
     },
   };
 }
@@ -898,5 +913,5 @@ export const TOYS = [
     build: buildAlien, duration: 10, price: 3, plateHeight: 124, demoHeight: 110, thumb: { cy: 28, h: 62, t: 0 } },
   { id: 'ice', name: 'Ice Cream Spinner', short: 'Ice Cream Spinner',
     tag: '', blurb: '',
-    build: buildIce, duration: 10, price: 6, plateHeight: 128, demoHeight: 110, thumb: { cy: 63, h: 142, t: 0 } },
+    build: buildIce, duration: 9, price: 6, plateHeight: 128, demoHeight: 110, thumb: { cy: 63, h: 142, t: 0 } },
 ];
