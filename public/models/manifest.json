@@ -575,11 +575,6 @@
   "indices": 186780,
   "height": 37.3390656
  },
- "al_body": {
-  "file": "al_body.bin",
-  "vertices": 143471,
-  "indices": 860622
- },
  "al_head": {
   "file": "al_head.bin",
   "vertices": 75735,
@@ -589,5 +584,15 @@
   "file": "al_eyes.bin",
   "vertices": 15600,
   "indices": 93588
+ },
+ "al_upper": {
+  "file": "al_upper.bin",
+  "vertices": 102765,
+  "indices": 616398
+ },
+ "al_lower": {
+  "file": "al_lower.bin",
+  "vertices": 40706,
+  "indices": 244224
  }
 }

@@ -769,30 +769,35 @@ async function buildGhosts() {
 
 async function buildAlien() {
   // A cute articulated alien. The head (with its dark eyes) turns and nods on the neck while the body sways.
-  const [gb, gh, ge] = await Promise.all(['al_body', 'al_head', 'al_eyes'].map(n => loadGeometry(n)));
+  const [gu, gl, gh, ge] = await Promise.all(['al_upper', 'al_lower', 'al_head', 'al_eyes'].map(n => loadGeometry(n)));
   const GREEN = 0x2fcf7c;
-  const body = mesh(gb, GREEN, 0.5), head = mesh(gh, GREEN, 0.5), eyes = mesh(ge, 0x101218, 0.25);
+  const upper = mesh(gu, GREEN, 0.5), lower = mesh(gl, GREEN, 0.5), head = mesh(gh, GREEN, 0.5), eyes = mesh(ge, 0x101218, 0.25);
   const NECK = 3.5;                                                   // height of the neck joint
-  const headG = new THREE.Group(); headG.position.y = NECK; head.position.y = -NECK; eyes.position.y = -NECK; headG.add(head, eyes);
-  const model = new THREE.Group(); model.add(body, headG); model.position.y = 25.1;   // feet on y = 0
+  const headG = new THREE.Group(); head.position.y = -NECK; eyes.position.y = -NECK; headG.add(head, eyes);
+  const HIP = -9;                                                      // waist joint: the upper body turns on the legs
+  const upG = new THREE.Group(); upG.position.y = HIP; upper.position.y = -HIP; headG.position.y = NECK - HIP; upG.add(upper, headG);
+  const model = new THREE.Group(); model.add(lower, upG); model.position.y = 25.1;   // feet on y = 0
   const sway = new THREE.Group(); sway.add(model);
   const spin = new THREE.Group(); spin.add(sway);
   const root = new THREE.Group(); root.add(spin);
   const css = n => '#' + n.toString(16).padStart(6, '0');
-  const v = (c, accent) => ({ accent, swatch: [css(c)], colors: { body: c } });
+  const v = (c, accent) => ({ accent, swatch: [css(c)], colors: { body: c, lower: c, head: c } });
   const LOOP_S = 10;
   return {
-    root, spin, mats: [body.material, head.material, eyes.material],
-    roles: { body: body.material, head: head.material },
+    root, spin, mats: [upper.material, lower.material, head.material, eyes.material],
+    roles: { body: upper.material, lower: lower.material, head: head.material },
     swatchShape: 'square',
-    variants: [v(GREEN, '#5fe0a0'), v(0xa7adb8, '#c9cfdc'), v(0xff8a8a, '#ffa8a8'), v(0x7a52e0, '#9d85f0')],
-    natural: 58, anim: 58, animCentre: 29,
+    variants: [v(GREEN, '#5fe0a0')],
+    natural: 76, anim: 76, animCentre: 33,
     update(s, animated) {
       const k = 2 * Math.PI / LOOP_S;
-      if (!animated) { spin.rotation.y = 0.45; headG.rotation.set(0, 0.25, 0); sway.rotation.set(0, 0, 0); return; }
+      if (!animated) { spin.rotation.y = 0.45; headG.rotation.set(0, 0.25, 0); upG.rotation.set(0, 0.15, 0); lower.rotation.set(0, 0, 0); sway.rotation.set(0, 0, 0); return; }
       spin.rotation.y = 0.9 * Math.sin(s * k);                          // turns to show off every side
       headG.rotation.set(0.12 * Math.sin(s * k * 3), 0.55 * Math.sin(s * k * 2 + 0.6), 0.1 * Math.sin(s * k * 3 + 1.2));   // curious head tilts and nods
-      sway.rotation.set(0.03 * Math.sin(s * k * 3), 0, 0.05 * Math.sin(s * k * 2));
+      // the upper body twists and leans on the hips while the legs shift the other way
+      upG.rotation.set(0.1 * Math.sin(s * k * 3 + 0.4), 0.45 * Math.sin(s * k * 2 + 1.8), 0.09 * Math.sin(s * k * 3 + 2));
+      lower.rotation.set(0, -0.22 * Math.sin(s * k * 2 + 1.8), 0);
+      sway.rotation.set(0, 0, 0);
       model.position.y = 25.1 + 0.5 * Math.abs(Math.sin(s * k * 3));    // a little bounce
     },
   };
@@ -804,7 +809,7 @@ export const COLOR_NAMES = {
   egg: ['Green', 'Pink', 'Red', 'White'],
   star: ['Red', 'Orange', 'Green'],
   donut: ['Orange', 'Pink', 'Green', 'Brown'],
-  alien: ['Green', 'Grey', 'Pink', 'Purple'],
+  alien: ['Green'],
   ghosts: ['Large', 'Medium', 'Small'],
   katana: ['Orange & Black', 'Black & Orange', 'Orange', 'Black'],
   pass: ['Black & White', 'Black', 'White'],
@@ -850,5 +855,5 @@ export const TOYS = [
     build: buildGhosts, duration: 6, price: 3, plateHeight: 124, demoHeight: 110, thumb: { cy: 37, h: 92, t: 0 } },
   { id: 'alien', name: 'Cute Alien', short: 'Cute Alien',
     tag: '', blurb: '',
-    build: buildAlien, duration: 10, price: 5, plateHeight: 124, demoHeight: 110, thumb: { cy: 28, h: 62, t: 0 } },
+    build: buildAlien, duration: 10, price: 3, plateHeight: 124, demoHeight: 110, thumb: { cy: 28, h: 62, t: 0 } },
 ];
