@@ -267,7 +267,7 @@ async function buildStar() {
       // The wings always hang from the disc like a cone, under gravity: broader when spinning (centrifugal), never inverted.
       // When the toy is turned over they slowly swing through flat to hang toward the new floor.
       const t = ((s % CYCLE) + CYCLE) % CYCLE;
-      const D_REST = 0.46, D_FLAT = 0.07;              // wing droop below horizontal, radians: at rest / at full spin
+      const D_REST = 0.46, D_FLAT = 0.38;              // wing droop below horizontal, radians: at rest / at full spin
       let pos = (DISC_UP + DISC_DOWN) / 2, flip = 0, sigma = 1;   // sigma: +1 = floor is on the loop side, -1 = floor is on the rope-end side
       if (animated) {
         if (t < 4.5)       { pos = DISC_UP + (DISC_DOWN - DISC_UP) * (t / 4.5);                flip = 0;                        sigma = 1; }
