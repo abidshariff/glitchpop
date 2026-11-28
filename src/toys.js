@@ -243,7 +243,7 @@ async function buildStar() {
   const root = new THREE.Group(); root.add(spin);
   const css = n => '#' + n.toString(16).padStart(6, '0');
   const v = (hex, accent) => ({ accent, swatch: [css(hex)], colors: { body: hex, ringA: hex, ringB: hex } });
-  const DISC_UP = 1, DISC_DOWN = 180; // disc positions along the rope (local +y = down in the scene)
+  const DISC_UP = 1, DISC_DOWN = 212; // disc positions along the rope (local +y = down in the scene)
   const CYCLE = 12, WSPIN = 2 * Math.PI * 1.4;   // spin rate while spiralling (rad/s)
   const smooth = x => { x = Math.min(1, Math.max(0, x)); return x * x * (3 - 2 * x); };
   // The disc does not spin while the toy is turned over: it spins up at the start of each run and stops before each turn.
