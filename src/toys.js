@@ -724,14 +724,29 @@ async function buildGhosts() {
           { float h = max(0., position.y - uBase); transformed.y = position.y + h * (uS - 1.0);
             float k = 1.0 - 0.07 * (uS - 1.0); transformed.x *= mix(1.0, k, smoothstep(0., 40., h)); transformed.z *= mix(1.0, k, smoothstep(0., 40., h)); }`);
     };
+    // the shadow pass needs the same stretch as the visible mesh, or the shadow would not follow the slinky
+    const depth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
+    depth.onBeforeCompile = sh => {
+      Object.assign(sh.uniforms, u);
+      sh.vertexShader = sh.vertexShader.replace('void main() {', 'uniform float uS; uniform float uBase;\nvoid main() {')
+        .replace('#include <begin_vertex>', `#include <begin_vertex>
+          { float h = max(0., position.y - uBase); transformed.y = position.y + h * (uS - 1.0);
+            float k = 1.0 - 0.07 * (uS - 1.0); transformed.x *= mix(1.0, k, smoothstep(0., 40., h)); transformed.z *= mix(1.0, k, smoothstep(0., 40., h)); }`);
+    };
     const m = new THREE.Mesh(g, mat); m.frustumCulled = false; m.position.x = X[i];
+    m.castShadow = true; m.customDepthMaterial = depth;
     return { m, u, mat };
   });
   const model = new THREE.Group(); ghosts.forEach(g => model.add(g.m));
   const spin = new THREE.Group(); spin.add(model);
   const root = new THREE.Group(); root.add(spin);
   // side light from the left-front and a low cool fill from the right, so the ring ridges throw clear shadows
-  const key = new THREE.DirectionalLight(0xfff1dc, 1.5); key.position.set(-260, 120, 140); root.add(key);
+  const key = new THREE.DirectionalLight(0xfff1dc, 1.5); key.position.set(-260, 220, 140); root.add(key);
+  key.castShadow = true; key.shadow.mapSize.set(2048, 2048); key.shadow.bias = -0.0004; key.shadow.normalBias = 0.6; key.shadow.radius = 5;
+  Object.assign(key.shadow.camera, { left: -150, right: 150, top: 150, bottom: -150, near: 50, far: 700 });
+  // an invisible floor that only shows the shadow, so the ghost sits on the ground in 3D
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(700, 700), new THREE.ShadowMaterial({ opacity: 0.3, color: 0x2b2250 }));
+  floor.rotation.x = -Math.PI / 2; floor.position.y = 0.2; floor.receiveShadow = true; root.add(floor);
   const fill = new THREE.DirectionalLight(0xbfd2ff, 0.5); fill.position.set(240, 30, 60); root.add(fill);
   const css = n => '#' + n.toString(16).padStart(6, '0');
   const sz = (label, price) => ({ accent: '#9d8cff', swatch: [css(WHITE)], colors: { ghost: WHITE }, label, price });
