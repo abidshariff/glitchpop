@@ -803,67 +803,12 @@ async function buildAlien() {
   };
 }
 
-async function buildIce() {
-  // A pop-open ice-cream cone: the cream is 8 curled leaves. Closed, they form a swirl of cream; with a swish they screw out
-  // of the cone and fan out into a long feather, like the product photo.
-  const names = ['ic_cone', ...Array.from({ length: 8 }, (_, k) => 'ic_leaf' + k)];
-  const [gc, ...gl] = await Promise.all(names.map(n => loadGeometry(n)));
-  const man = (await manifest);
-  const BLACK = 0x17171c, PINK = 0xff7fb3, RED = 0xe5231a, WHITE = 0xf6f1ea;
-  const cone = mesh(gc, BLACK, 0.5);
-  cone.position.y = 35.9;                                    // cone point on y = 0, its rim at y = 71.8
-  const creamMat = new THREE.MeshStandardMaterial({ color: PINK, roughness: 0.4, metalness: 0, side: THREE.DoubleSide });
-  const leaves = gl.map((g, k) => { const m = new THREE.Mesh(g, creamMat); const holder = new THREE.Group(); holder.add(m); return { holder, m, a: man['ic_leaf' + k].angle }; });
-  const A0 = leaves[0].a;
-  const creamG = new THREE.Group(); creamG.position.y = 71.8 + 27.5; leaves.forEach(l => creamG.add(l.holder));
-  const model = new THREE.Group(); model.add(cone, creamG);
-  const swing = new THREE.Group(); swing.add(model); swing.position.y = 71.8; model.position.y = -71.8;   // swish pivots at the cone rim
-  const spin = new THREE.Group(); spin.add(swing);
-  const root = new THREE.Group(); root.add(spin);
-  const css = n => '#' + n.toString(16).padStart(6, '0');
-  const v = (c, k, accent) => ({ accent, swatch: [css(c), css(k)], colors: { cone: c, cream: k } });
-  const LOOP_S = 9, sm = x => { x = Math.min(1, Math.max(0, x)); return x * x * (3 - 2 * x); };
-  const popOut = tau => (tau <= 0 ? 0 : 1 - Math.exp(-9 * tau) * (Math.cos(20 * tau) + 0.45 * Math.sin(20 * tau)));
-  const STEP = 8, FAN = 1.0;
-  function pose(u) {   // u: 0 = closed swirl, 1 = fully open feather
-    leaves.forEach((l, k) => {
-      const lag = Math.max(0, u - 0.04 * k * (u < 0.999 ? 1 : 0));
-      const e = Math.max(0, Math.min(1.12, lag));
-      l.holder.position.y = e * k * STEP;                               // each leaf slides out a bit further than the one before
-      l.holder.rotation.y = -(l.a - A0 + (l.a < A0 ? 2 * Math.PI : 0)) * e * FAN * 0.8 + e * 0.3 * k * 0.4;
-    });
-  }
-  pose(0);
-  return {
-    root, spin, mats: [cone.material, creamMat],
-    roles: { cone: cone.material, cream: creamMat },
-    swatchShape: 'wide',
-    variants: [v(BLACK, PINK, '#ff8fc0'), v(RED, WHITE, '#ff6a4d')],
-    natural: 190, anim: 190, animCentre: 70,
-    update(s, animated) {
-      if (!animated) { pose(0); swing.rotation.set(0, 0, 0); spin.rotation.y = 0.3; return; }
-      const t = ((s % LOOP_S) + LOOP_S) % LOOP_S;
-      // closed -> a swish: the whole cone whips over and the leaves pop open -> hold -> swish back and fold shut
-      let u = 0, ang = 0;
-      if (t < 0.9) { ang = 0.05 * Math.sin(t * 3); }
-      else if (t < 1.25) { ang = -0.9 * sm((t - 0.9) / 0.35); u = 0; }
-      else if (t < 5.4) { ang = -0.9 * 1 + 0.06 * Math.sin((t - 1.25) * 2); u = popOut(t - 1.15); ang = -0.9 + (t < 1.7 ? 0.3 * Math.sin((t - 1.25) * 7) * Math.exp(-(t - 1.25) * 4) : 0); }
-      else if (t < 6.1) { const p = (t - 5.4) / 0.7; u = 1 - sm(p); ang = -0.9 * (1 - sm(p)); }
-      else { u = 0; ang = 0; }
-      pose(u);
-      swing.rotation.z = ang;
-      spin.rotation.y = 0.25 * Math.sin(s * 2 * Math.PI / LOOP_S);
-    },
-  };
-}
-
 // Names shown in the cart for each colour option (same order as the swatch buttons)
 export const COLOR_NAMES = {
   wand: ['Black & Green', 'Black & White', 'White & Black'],
   egg: ['Green', 'Pink', 'Red', 'White'],
   star: ['Red', 'Orange', 'Green'],
   donut: ['Orange', 'Pink', 'Green', 'Brown'],
-  ice: ['Black & Pink', 'Red & White'],
   alien: ['Green'],
   ghosts: ['Large', 'Medium', 'Small'],
   katana: ['Orange & Black', 'Black & Orange', 'Orange', 'Black'],
@@ -911,7 +856,4 @@ export const TOYS = [
   { id: 'alien', name: 'Cute Alien', short: 'Cute Alien',
     tag: '', blurb: '',
     build: buildAlien, duration: 10, price: 3, plateHeight: 124, demoHeight: 110, thumb: { cy: 28, h: 62, t: 0 } },
-  { id: 'ice', name: 'Ice Cream Spinner', short: 'Ice Cream Spinner',
-    tag: '', blurb: '',
-    build: buildIce, duration: 9, price: 6, plateHeight: 128, demoHeight: 110, thumb: { cy: 63, h: 142, t: 0 } },
 ];
