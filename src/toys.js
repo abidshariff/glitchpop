@@ -243,18 +243,16 @@ async function buildStar() {
   const root = new THREE.Group(); root.add(spin);
   const css = n => '#' + n.toString(16).padStart(6, '0');
   const v = (hex, accent) => ({ accent, swatch: [css(hex)], colors: { body: hex, ringA: hex, ringB: hex } });
-  // spin speed ramps up and down once per loop; the integral is closed-form so the loop is seamless (6 turns per loop)
   const DISC_UP = 34, DISC_DOWN = 150; // disc positions along the rope (local +y = down in the scene)
-  const CYCLE = 12;
-  const SPIN_STEPS = 1440, spinTab = new Float32Array(SPIN_STEPS + 1);
-  for (let i = 0, a = 0; i <= SPIN_STEPS; i++) {
-    spinTab[i] = a;
-    const t = (i / SPIN_STEPS) * CYCLE; let q = 0;
-    if (t < 4) q = Math.sin(Math.PI * t / 4) ** 2; else if (t >= 6 && t < 10) q = Math.sin(Math.PI * (t - 6) / 4) ** 2;
-    a += (1.0 + 13 * q) * (CYCLE / SPIN_STEPS);
-  }
+  const CYCLE = 12, WSPIN = 2 * Math.PI * 1.4;   // spin rate while spiralling (rad/s)
+  const smooth = x => { x = Math.min(1, Math.max(0, x)); return x * x * (3 - 2 * x); };
+  // The disc does not spin while the toy is turned over: it spins up at the start of each run and stops before each turn.
+  const omega = t => WSPIN * (smooth(t / 0.7) * (1 - smooth((t - 4.0) / 0.45)) + smooth((t - 6) / 0.7) * (1 - smooth((t - 10.05) / 0.45)));
+  const SPIN_STEPS = 2400, spinTab = new Float32Array(SPIN_STEPS + 1);
+  for (let i = 0, a = 0; i <= SPIN_STEPS; i++) { spinTab[i] = a; a += omega((i / SPIN_STEPS) * CYCLE) * (CYCLE / SPIN_STEPS); }
   const spinK = (2 * Math.PI * Math.round(spinTab[SPIN_STEPS] / (2 * Math.PI))) / spinTab[SPIN_STEPS];
   const spinAt = t => { const f = (t / CYCLE) * SPIN_STEPS, i = Math.min(SPIN_STEPS - 1, Math.floor(f)); return spinK * (spinTab[i] + (spinTab[i + 1] - spinTab[i]) * (f - i)); };
+  const fall = tau => (tau <= 0 ? 0 : 1 - Math.exp(-6 * tau) * (Math.cos(14 * tau) + 0.43 * Math.sin(14 * tau)));   // wings flop over with a little bounce
   return {
     root, spin, mats: [body.material, matA, matB],
     roles: { body: body.material, ringA: matA, ringB: matB },
@@ -262,22 +260,25 @@ async function buildStar() {
     variants: [v(0xe5231a, '#ff5a4d'), v(0xff6a13, '#ff8a3d'), v(0x7bd62a, '#8be03a')],
     natural: 240.2, anim: 240.2, animCentre: 120.1,
     update(s, animated) {
-      // Two steady spirals per 12 s loop, one in each orientation, joined by a quick half turn:
-      //  A  0-4.5s   loop down : the disc spirals down the rope, rope end -> loop, at constant speed
-      //  F1 4.5-6s   the toy turns over (steady turn, anticlockwise)
-      //  C  6-10.5s  loop up   : the disc spirals down again, loop -> rope end
-      //  F2 10.5-12s the toy turns back over
-      // Nothing eases or reverses: every part moves at a constant rate.
+      // Per 12 s loop:
+      //  A  0-4.5s   loop down : the disc spins up and spirals down the rope
+      //  F1 4.5-6s   the toy turns over; the disc is NOT spinning, the wings just flop over with gravity
+      //  C  6-10.5s  loop up   : the disc spins up again and spirals down the rope
+      //  F2 10.5-12s the toy turns back over, wings flop over again
       const t = ((s % CYCLE) + CYCLE) % CYCLE;
       const B = 0.7;                                   // wing angle, radians (+ toward the loop, - toward the rope end)
       let pos = (DISC_UP + DISC_DOWN) / 2, flip = 0, wing = 0.62;
       if (animated) {
-        if (t < 4.5)       { const p = t / 4.5;          pos = DISC_UP + (DISC_DOWN - DISC_UP) * p;      flip = 0;                          wing = -B + 2 * B * p; }
-        else if (t < 6)    { const p = (t - 4.5) / 1.5;  pos = DISC_DOWN;                                flip = Math.PI * p;                wing = B; }
-        else if (t < 10.5) { const p = (t - 6) / 4.5;    pos = DISC_DOWN + (DISC_UP - DISC_DOWN) * p;    flip = Math.PI;                    wing = B - 2 * B * p; }
-        else               { const p = (t - 10.5) / 1.5; pos = DISC_UP;                                  flip = Math.PI + Math.PI * p;      wing = -B; }
+        if (t < 4.5)       { const p = t / 4.5;          pos = DISC_UP + (DISC_DOWN - DISC_UP) * p;      flip = 0;
+                             wing = t < 0.6 ? B - 2 * B * smooth(t / 0.6) : -B + 2 * B * ((t - 0.6) / 3.9); }
+        else if (t < 6)    { const p = (t - 4.5) / 1.5;  pos = DISC_DOWN;                                flip = Math.PI * p;
+                             wing = B - 2 * B * fall(t - (4.5 + 0.45 * 1.5)); }
+        else if (t < 10.5) { const p = (t - 6) / 4.5;    pos = DISC_DOWN + (DISC_UP - DISC_DOWN) * p;    flip = Math.PI;
+                             wing = t < 6.6 ? -B + 2 * B * smooth((t - 6) / 0.6) : B - 2 * B * ((t - 6.6) / 3.9); }
+        else               { const p = (t - 10.5) / 1.5; pos = DISC_UP;                                  flip = Math.PI + Math.PI * p;
+                             wing = -B + 2 * B * fall(t - (10.5 + 0.45 * 1.5)); }
       }
-      const theta = animated ? 2 * Math.PI * 12 * (t / CYCLE) : s * 0.9;   // constant spin, 12 turns per loop
+      const theta = animated ? spinAt(t) : s * 0.9;
       flipG.rotation.z = flip;
       discG.rotation.z = 0;
       discG.position.y = DISC_C + pos;
