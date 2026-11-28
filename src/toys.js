@@ -238,12 +238,12 @@ async function buildStar() {
   const discG = new THREE.Group(); discG.add(...rings); rings.forEach(r => { r.position.y = -DISC_C; });
   const model = new THREE.Group(); model.add(body, discG);
   model.rotation.x = Math.PI; // like the video: loop at the bottom, star disc at the top
-  const flipG = new THREE.Group(); flipG.position.y = 120.1; flipG.add(model); // pivot at the middle of the rope
+  const flipG = new THREE.Group(); flipG.position.y = 148; flipG.add(model); // pivot at the middle of the rope
   const spin = new THREE.Group(); spin.add(flipG);
   const root = new THREE.Group(); root.add(spin);
   const css = n => '#' + n.toString(16).padStart(6, '0');
   const v = (hex, accent) => ({ accent, swatch: [css(hex)], colors: { body: hex, ringA: hex, ringB: hex } });
-  const DISC_UP = 34, DISC_DOWN = 150; // disc positions along the rope (local +y = down in the scene)
+  const DISC_UP = 4, DISC_DOWN = 172; // disc positions along the rope (local +y = down in the scene)
   const CYCLE = 12, WSPIN = 2 * Math.PI * 1.4;   // spin rate while spiralling (rad/s)
   const smooth = x => { x = Math.min(1, Math.max(0, x)); return x * x * (3 - 2 * x); };
   // The disc does not spin while the toy is turned over: it spins up at the start of each run and stops before each turn.
@@ -257,7 +257,7 @@ async function buildStar() {
     roles: { body: body.material, ringA: matA, ringB: matB },
     swatchShape: 'square',
     variants: [v(0xe5231a, '#ff5a4d'), v(0xff6a13, '#ff8a3d'), v(0x7bd62a, '#8be03a')],
-    natural: 240.2, anim: 240.2, animCentre: 120.1,
+    natural: 292, anim: 292, animCentre: 146,
     update(s, animated) {
       // Per 12 s loop:
       //  A  0-4.5s   loop down : the disc spins up and spirals down the rope
