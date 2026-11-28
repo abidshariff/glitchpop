@@ -625,7 +625,7 @@ async function buildKatana() {
   // the sword is held upright (blade end up) and swings forward to the left, so it points left when thrown out
   const flip = new THREE.Group(); flip.add(model); flip.rotation.set(0, -Math.PI / 2, Math.PI);
   const swing = new THREE.Group(); swing.add(flip); flip.position.y = 0;              // pivot: the middle of the handle
-  const place = new THREE.Group(); place.add(swing); place.position.set(95, 176, 0);
+  const place = new THREE.Group(); place.add(swing); place.position.set(120, 205, 0);
   const spin = new THREE.Group(); spin.add(place);
   const root = new THREE.Group(); root.add(spin);
   // bend every blade strip along a circular arc past the guard (kap < 0 curves the other way); q[k] is each segment's slide-out 0..1
@@ -650,11 +650,11 @@ async function buildKatana() {
   }
   const css = n => '#' + n.toString(16).padStart(6, '0');
   const v = (c, accent) => ({ accent, swatch: [css(c), css(BLACK)], colors: { body: c, cap: c } });
-  const LOOP_S = 10, sm = x => { x = Math.min(1, Math.max(0, x)); return x * x * (3 - 2 * x); };
+  const LOOP_S = 7, sm = x => { x = Math.min(1, Math.max(0, x)); return x * x * (3 - 2 * x); };
   const lerp = (a, b, k) => a + (b - a) * k;
   // the throw: segments fly out together (tiny stagger), overshoot their stops, and snap home
   const springOut = tau => (tau <= 0 ? 0 : 1 - Math.exp(-9 * tau) * (Math.cos(26 * tau) + 0.35 * Math.sin(26 * tau)));
-  const T_WIND = 1.2, T_SWISH = 1.75, T_SWISH_END = 2.1, T_BACK = 6.6, T_BACK_END = 7.7;
+  const T_WIND = 0.3, T_SWISH = 0.7, T_SWISH_END = 1.05, T_BACK = 5.0, T_BACK_END = 6.1;   // short rest after closing, then straight into the next swish
   const q = [0, 0, 0, 0];
   bend(q, 0);
   return {
@@ -662,9 +662,9 @@ async function buildKatana() {
     roles: { body: handle.material, cap: cap.material },
     swatchShape: 'wide',
     variants: [v(ORANGE, '#ff9a4a'), v(RED, '#ff6a4d')],
-    natural: 330, anim: 330, animCentre: 165,
+    natural: 410, anim: 410, animCentre: 205,
     update(s, animated) {
-      if (!animated) { q.fill(0.3); bend(q, 0.002); swing.rotation.z = 0.6; spin.rotation.y = 0; place.position.set(30, 150, 0); return; }
+      if (!animated) { bladeMat.color.set(0x9aa0ae); q.fill(0.85); bend(q, 0); swing.rotation.z = 0.78; spin.rotation.y = 0; place.position.set(70, 150, 0); return; }
       const t = ((s % LOOP_S) + LOOP_S) % LOOP_S;
       // swing angle: 0 = sword upright, pi/2 = pointing sideways. Pull back a touch, then a fast swish forward that overshoots
       let ang;
@@ -680,11 +680,7 @@ async function buildKatana() {
         const val = t < tIn ? springOut(t - tOut) : 1 - sm((t - tIn) / 0.55);
         q[k] = Math.min(1.15, Math.max(0, val));
       }
-      // blade curvature: it trails behind the swish, whips, then settles into a gentle sag that keeps bobbing
-      const u = t - (T_SWISH + 0.08);
-      let kap = 0.0006;
-      if (t >= T_SWISH && t < T_BACK) kap = 0.0012 + (-0.0052 * Math.exp(-5 * Math.max(0, u)) + 0.0028 * Math.exp(-1.6 * Math.max(0, u)) * Math.sin(9.5 * Math.max(0, u))) * (u > 0 ? 1 : 0);
-      else if (t >= T_BACK && t < T_BACK_END) kap = lerp(0.0012, 0.0006, sm((t - T_BACK) / 1.1));
+      const kap = 0;                                   // the blade is a rigid, straight sword
       bend(q, kap);
       spin.rotation.y = 0.12 * Math.sin(s * 2 * Math.PI / LOOP_S);
     },
@@ -735,5 +731,5 @@ export const TOYS = [
     build: buildPass, duration: 12, price: 5, plateHeight: 126, demoHeight: 110, thumb: { cy: 30, h: 76, t: 0 } },
   { id: 'katana', name: 'Dragonite Katana', short: 'Katana',
     tag: '', blurb: '',
-    build: buildKatana, duration: 10, price: 15, plateHeight: 132, demoHeight: 110, thumb: { cy: 150, h: 300, t: 0 } },
+    build: buildKatana, duration: 7, price: 15, plateHeight: 132, demoHeight: 110, thumb: { cy: 150, h: 340, t: 0 } },
 ];
