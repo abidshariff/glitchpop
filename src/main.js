@@ -270,7 +270,7 @@ function frame() {
     setOpacity(it.toy.mats, Math.min(1, u * 3));
     for (const [role, col] of Object.entries(it.targets)) it.toy.roles[role].color.lerp(col, kc);
     it.plate.userData.glow.material.color.lerp(it.glow, kc);
-    it.plate.userData.glow.material.opacity = 0.32 * Math.min(1, u * 1.5);
+    it.plate.userData.glow.material.opacity = (it.toy.glowBoost ?? 0.32) * Math.min(1, u * 1.5);
     it.toy.update(FROZEN !== null ? s : s - (it.t0 ?? 0), true);
   });
   if (shown >= 0) {

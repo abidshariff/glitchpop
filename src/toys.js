@@ -713,7 +713,7 @@ async function buildKatana() {
 async function buildGhosts() {
   // Three slinky ghosts, each printed as one springy spiral. They are pulled up tall, wobble like a spring, and spring back.
   const geos = await Promise.all(['gh_large', 'gh_mid', 'gh_small'].map(n => loadGeometry(n)));
-  const X = [-52, 8, 52], BASE_H = 6, WHITE = 0xf1f2ee, GLOW = 0xa6f23a;
+  const X = [-52, 8, 52], BASE_H = 6, WHITE = 0xdcdad2, GLOW = 0xa6f23a;   // a faint warm grey-cream so 'white' separates from the pale page
   const ghosts = geos.map((g, i) => {
     const u = { uS: { value: 1 }, uBase: { value: BASE_H } };
     const mat = new THREE.MeshStandardMaterial({ color: WHITE, roughness: 0.55, metalness: 0, side: THREE.DoubleSide });
@@ -730,8 +730,11 @@ async function buildGhosts() {
   const model = new THREE.Group(); ghosts.forEach(g => model.add(g.m));
   const spin = new THREE.Group(); spin.add(model);
   const root = new THREE.Group(); root.add(spin);
+  // side light from the left-front and a low cool fill from the right, so the ring ridges throw clear shadows
+  const key = new THREE.DirectionalLight(0xfff1dc, 1.5); key.position.set(-260, 120, 140); root.add(key);
+  const fill = new THREE.DirectionalLight(0xbfd2ff, 0.5); fill.position.set(240, 30, 60); root.add(fill);
   const css = n => '#' + n.toString(16).padStart(6, '0');
-  const sz = (label, price) => ({ accent: '#dfe3d6', swatch: [css(WHITE)], colors: { ghost: WHITE }, label, price });
+  const sz = (label, price) => ({ accent: '#9d8cff', swatch: [css(WHITE)], colors: { ghost: WHITE }, label, price });
   const LOOP_S = 12, sm = x => { x = Math.min(1, Math.max(0, x)); return x * x * (3 - 2 * x); };
   // pull to a stretch, hold, release: a spring bounce that dies out
   const pull = (t, t0, hold, rel, amp) => {
@@ -746,7 +749,7 @@ async function buildGhosts() {
     roles: { ghost: ghosts[0].mat },
     swatchShape: 'square',
     variants: [sz('L', 3), sz('M', 2), sz('S', 1)],
-    selected: 0,
+    selected: 0, glowBoost: 0.72,
     natural: 190, anim: 190, animCentre: 80,
     update(s, animated) {
       // menu icon: just the big ghost, centred and facing front
