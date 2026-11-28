@@ -594,5 +594,15 @@
   "file": "al_lower.bin",
   "vertices": 40706,
   "indices": 244224
+ },
+ "ic_cone": {
+  "file": "ic_cone.bin",
+  "vertices": 177577,
+  "indices": 1065450
+ },
+ "ic_cream": {
+  "file": "ic_cream.bin",
+  "vertices": 286868,
+  "indices": 1721160
  }
 }

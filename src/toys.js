@@ -803,12 +803,52 @@ async function buildAlien() {
   };
 }
 
+async function buildIce() {
+  // An ice-cream spinner: the waffle cone is the handle (point down), and the swirl of cream sits on top and spins on a pin.
+  const [gc, gm] = await Promise.all([loadGeometry('ic_cone'), loadGeometry('ic_cream')]);
+  const BLACK = 0x17171c, PINK = 0xff7fb3, RED = 0xe5231a, WHITE = 0xf6f1ea;
+  const cone = mesh(gc, BLACK, 0.5), cream = mesh(gm, PINK, 0.4);
+  cone.position.y = 35.9;                                    // cone point on y = 0, its rim at y = 71.8
+  const creamG = new THREE.Group(); creamG.position.y = 71.8 + 27.5; creamG.add(cream);
+  const lift = new THREE.Group(); lift.add(creamG);
+  const model = new THREE.Group(); model.add(cone, lift);
+  const tilt = new THREE.Group(); tilt.add(model);
+  const spin = new THREE.Group(); spin.add(tilt);
+  const root = new THREE.Group(); root.add(spin);
+  const css = n => '#' + n.toString(16).padStart(6, '0');
+  const v = (c, k, accent) => ({ accent, swatch: [css(c), css(k)], colors: { cone: c, cream: k } });
+  const LOOP_S = 10, W = 2 * Math.PI * 6;
+  const sm = x => { x = Math.min(1, Math.max(0, x)); return x * x * (3 - 2 * x); };
+  // two flicks per loop, in opposite directions: the cream spins up fast, then slows to a stop
+  const om = t => { const a = t - 0.6, b = t - 5.6; const f = (u, d) => (u < 0 || u > d ? 0 : sm(u / 0.35) * Math.exp(-0.7 * u) * (1 - sm((u - d + 1.2) / 1.2)));
+    return W * (f(a, 4.2) - f(b, 4.2)); };
+  const N = 3000, tab = new Float32Array(N + 1);
+  for (let i = 0, ang = 0; i <= N; i++) { tab[i] = ang; ang += om((i / N) * LOOP_S) * (LOOP_S / N); }
+  const angAt = t => { const f = (t / LOOP_S) * N, i = Math.min(N - 1, Math.floor(f)); return tab[i] + (tab[i + 1] - tab[i]) * (f - i); };
+  return {
+    root, spin, mats: [cone.material, cream.material],
+    roles: { cone: cone.material, cream: cream.material },
+    swatchShape: 'wide',
+    variants: [v(BLACK, PINK, '#ff8fc0'), v(RED, WHITE, '#ff6a4d')],
+    natural: 134, anim: 134, animCentre: 63,
+    update(s, animated) {
+      if (!animated) { creamG.rotation.y = 0.5; lift.position.y = 0; tilt.rotation.set(0, 0, 0); spin.rotation.y = 0.3; return; }
+      const t = ((s % LOOP_S) + LOOP_S) % LOOP_S, w = Math.abs(om(t)) / W;
+      creamG.rotation.y = angAt(t);
+      lift.position.y = 1.4 * w;                                 // the cream lifts a hair off the cone while it spins fast
+      tilt.rotation.set(0.05 * w * Math.sin(s * 14), 0, 0.05 * w * Math.cos(s * 14));   // and wobbles on its pin
+      spin.rotation.y = 0.35 * Math.sin(s * 2 * Math.PI / LOOP_S);
+    },
+  };
+}
+
 // Names shown in the cart for each colour option (same order as the swatch buttons)
 export const COLOR_NAMES = {
   wand: ['Black & Green', 'Black & White', 'White & Black'],
   egg: ['Green', 'Pink', 'Red', 'White'],
   star: ['Red', 'Orange', 'Green'],
   donut: ['Orange', 'Pink', 'Green', 'Brown'],
+  ice: ['Black & Pink', 'Red & White'],
   alien: ['Green'],
   ghosts: ['Large', 'Medium', 'Small'],
   katana: ['Orange & Black', 'Black & Orange', 'Orange', 'Black'],
@@ -856,4 +896,7 @@ export const TOYS = [
   { id: 'alien', name: 'Cute Alien', short: 'Cute Alien',
     tag: '', blurb: '',
     build: buildAlien, duration: 10, price: 3, plateHeight: 124, demoHeight: 110, thumb: { cy: 28, h: 62, t: 0 } },
+  { id: 'ice', name: 'Ice Cream Spinner', short: 'Ice Cream Spinner',
+    tag: '', blurb: '',
+    build: buildIce, duration: 10, price: 6, plateHeight: 128, demoHeight: 110, thumb: { cy: 63, h: 142, t: 0 } },
 ];
