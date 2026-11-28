@@ -655,7 +655,7 @@ async function buildKatana() {
     });
   }
   const css = n => '#' + n.toString(16).padStart(6, '0');
-  const v = (c, accent) => ({ accent, swatch: [css(c), css(BLACK)], colors: { body: c, cap: c } });
+  const v = (h, b, accent) => ({ accent, swatch: h === b ? [css(h)] : [css(h), css(b)], colors: { body: h, cap: h, blade: b } });
   const LOOP_S = 7, sm = x => { x = Math.min(1, Math.max(0, x)); return x * x * (3 - 2 * x); };
   const lerp = (a, b, k) => a + (b - a) * k;
   // the throw: segments fly out together (tiny stagger), overshoot their stops, and snap home
@@ -665,19 +665,14 @@ async function buildKatana() {
   bend(q, 0);
   return {
     root, spin, mats: [handle.material, cap.material, bladeMat],
-    roles: { body: handle.material, cap: cap.material },
+    roles: { body: handle.material, cap: cap.material, blade: bladeMat },
     swatchShape: 'wide',
-    variants: [v(ORANGE, '#ff9a4a'), v(RED, '#ff6a4d')],
+    variants: [v(ORANGE, BLACK, '#ff9a4a'), v(BLACK, ORANGE, '#ff9a4a'), v(ORANGE, ORANGE, '#ff9a4a'), v(BLACK, BLACK, '#8a8f9c')],
     natural: 410, anim: 410, animCentre: 205,
     update(s, animated) {
       if (!animated) { bladeMat.color.set(0x9aa0ae); q.fill(0.85); bend(q, 0); swing.rotation.z = 0.78; spin.rotation.y = 0; place.position.set(70, 150, 0); return; }
-      // the first time it opens (after the product is picked) the swish plays in slow motion so you can see how it works
-      const HOLD = 0.9, SLOW = 0.28, T0 = 0.3, T1 = 2.2, SLOW_REAL = (T1 - T0) / SLOW;
-      let tt;
-      if (s < HOLD) tt = T0 * (s / HOLD);
-      else if (s < HOLD + SLOW_REAL) tt = T0 + (s - HOLD) * SLOW;
-      else tt = T1 + (s - HOLD - SLOW_REAL);
-      const t = ((tt % LOOP_S) + LOOP_S) % LOOP_S;
+      // when the product is picked the sword first sits completely closed while it comes out of the printer; the swish starts after that
+      const t = (((Math.max(0, s - 1.9)) % LOOP_S) + LOOP_S) % LOOP_S;
       // swing angle: 0 = sword upright, pi/2 = pointing sideways. Pull back a touch, then a fast swish forward that overshoots
       let ang;
       if (t < T_WIND) ang = 0.1 + 0.04 * Math.sin(t * 3);
@@ -705,7 +700,7 @@ export const COLOR_NAMES = {
   egg: ['Green', 'Pink', 'Red', 'White'],
   star: ['Red', 'Orange', 'Green'],
   donut: ['Orange', 'Pink', 'Green', 'Brown'],
-  katana: ['Orange', 'Red'],
+  katana: ['Orange & Black', 'Black & Orange', 'Orange', 'Black'],
   pass: ['Black & White', 'Black', 'White'],
   bird: ['Yellow', 'Pink', 'Red'],
   snake: ['Pink', 'Blue'],
@@ -743,5 +738,5 @@ export const TOYS = [
     build: buildPass, duration: 12, price: 5, plateHeight: 126, demoHeight: 110, thumb: { cy: 30, h: 76, t: 0 } },
   { id: 'katana', name: 'Dragonite Katana', short: 'Katana',
     tag: '', blurb: '',
-    build: buildKatana, duration: 7, price: 15, plateHeight: 132, demoHeight: 110, thumb: { cy: 150, h: 340, t: 0 } },
+    build: buildKatana, duration: 7, price: 12, plateHeight: 132, demoHeight: 110, thumb: { cy: 150, h: 340, t: 0 } },
 ];
