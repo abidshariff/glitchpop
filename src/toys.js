@@ -72,10 +72,21 @@ async function buildWand() {
           float nr2 = nr * cos(ph) + ny * sin(ph); float ny2 = -nr * sin(ph) + ny * cos(ph);
           vec2 nt = objectNormal.xz - d * nr;
           objectNormal = vec3(d.x * nr2 + nt.x, ny2, d.y * nr2 + nt.y); }`)
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+        { float r = length(position.xz); float k = uLeg / (uRmax - uR0);
+          if (r > uR0 && abs(k) > 1e-4) {
+            float e = r - uR0, ph = k * e, y0 = -15.5, yo = position.y - y0;
+            float rad = uR0 + sin(ph) / k + yo * sin(ph);
+            float down = (1.0 - cos(ph)) / k;
+            vec2 d = position.xz / r;
+            transformed.xz = d * rad;
+            transformed.y = y0 - down + yo * cos(ph);
+          } }`)
   };
   const spindle = mesh(gs, 0xb6ff1a), pumpkin = new THREE.Mesh(gp, pumpkinMat), handle = mesh(gh, 0x16161c, 0.35), stem = mesh(gt, 0x6f5034);
   const HANDLE_TOP = 102, SLIDE_MIN = 120, SLIDE_MAX = 262;   // pumpkin body rests right on the handle at the bottom and reaches the star end at the top
   const CYCLE = 12;
+  let legX = 1.7, legV = 0, legT = -1;     // leg droop spring state
   // spin angle table: fast mid-slide, slow turn otherwise; normalised to whole turns so the loop has no jump
   const SPIN_STEPS = 1440, spinTab = new Float32Array(SPIN_STEPS + 1);
   for (let i = 0, a = 0; i <= SPIN_STEPS; i++) {
@@ -127,8 +138,13 @@ async function buildWand() {
         spin.rotation.y = Math.sin(s * 2 * Math.PI / CYCLE) * 0.5;
         // legs fly out flat while spinning and sag toward the floor when slow. Flipped, the floor is on the other side
         // of the pumpkin, so the same sag bends the legs up and over its back instead.
-        const sag = 1.7 - 1.45 * Math.pow(q, 0.7), g = Math.cos(flip);
-        leg.uLeg.value = sag * (g >= 0 ? g : g * 0.5);
+        // Legs are limp: they fall toward the floor whenever the pumpkin is not spinning. Once the wand is turned past sideways
+        // the floor is on the other side, so they flop over to that side (full droop, not half). A spring gives them weight.
+        const sag = 1.7 - 1.45 * Math.pow(q, 0.7), target = sag * Math.tanh(4 * Math.cos(flip));
+        const dt = s - legT; legT = s;
+        if (!(dt > 0 && dt < 0.2)) { legX = target; legV = 0; }
+        else { const n = Math.ceil(dt / 0.008), h = dt / n; for (let i = 0; i < n; i++) { legV += (62 * (target - legX) - 5.5 * legV) * h; legX += legV * h; } }
+        leg.uLeg.value = legX;
       } else {
         flipG.rotation.z = 0; pg.rotation.z = 0;
         spin.rotation.y = s * 0.35; spin.rotation.z = 0;
