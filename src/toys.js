@@ -252,7 +252,6 @@ async function buildStar() {
   for (let i = 0, a = 0; i <= SPIN_STEPS; i++) { spinTab[i] = a; a += omega((i / SPIN_STEPS) * CYCLE) * (CYCLE / SPIN_STEPS); }
   const spinK = (2 * Math.PI * Math.round(spinTab[SPIN_STEPS] / (2 * Math.PI))) / spinTab[SPIN_STEPS];
   const spinAt = t => { const f = (t / CYCLE) * SPIN_STEPS, i = Math.min(SPIN_STEPS - 1, Math.floor(f)); return spinK * (spinTab[i] + (spinTab[i + 1] - spinTab[i]) * (f - i)); };
-  const fall = tau => (tau <= 0 ? 0 : 1 - Math.exp(-6 * tau) * (Math.cos(14 * tau) + 0.43 * Math.sin(14 * tau)));   // wings flop over with a little bounce
   return {
     root, spin, mats: [body.material, matA, matB],
     roles: { body: body.material, ringA: matA, ringB: matB },
@@ -262,27 +261,27 @@ async function buildStar() {
     update(s, animated) {
       // Per 12 s loop:
       //  A  0-4.5s   loop down : the disc spins up and spirals down the rope
-      //  F1 4.5-6s   the toy turns over; the disc is NOT spinning, the wings just flop over with gravity
+      //  F1 4.5-6s   the toy turns over; the disc is NOT spinning
       //  C  6-10.5s  loop up   : the disc spins up again and spirals down the rope
-      //  F2 10.5-12s the toy turns back over, wings flop over again
+      //  F2 10.5-12s the toy turns back over
+      // The wings always hang from the disc like a cone, under gravity: broader when spinning (centrifugal), never inverted.
+      // When the toy is turned over they slowly swing through flat to hang toward the new floor.
       const t = ((s % CYCLE) + CYCLE) % CYCLE;
-      const B = 0.7;                                   // wing angle, radians (+ toward the loop, - toward the rope end)
-      let pos = (DISC_UP + DISC_DOWN) / 2, flip = 0, wing = 0.62;
+      const D_REST = 0.46, D_FLAT = 0.07;              // wing droop below horizontal, radians: at rest / at full spin
+      let pos = (DISC_UP + DISC_DOWN) / 2, flip = 0, sigma = 1;   // sigma: +1 = floor is on the loop side, -1 = floor is on the rope-end side
       if (animated) {
-        if (t < 4.5)       { const p = t / 4.5;          pos = DISC_UP + (DISC_DOWN - DISC_UP) * p;      flip = 0;
-                             wing = t < 0.6 ? B - 2 * B * smooth(t / 0.6) : -B + 2 * B * ((t - 0.6) / 3.9); }
-        else if (t < 6)    { const p = (t - 4.5) / 1.5;  pos = DISC_DOWN;                                flip = Math.PI * p;
-                             wing = B - 2 * B * fall(t - (4.5 + 0.45 * 1.5)); }
-        else if (t < 10.5) { const p = (t - 6) / 4.5;    pos = DISC_DOWN + (DISC_UP - DISC_DOWN) * p;    flip = Math.PI;
-                             wing = t < 6.6 ? -B + 2 * B * smooth((t - 6) / 0.6) : B - 2 * B * ((t - 6.6) / 3.9); }
-        else               { const p = (t - 10.5) / 1.5; pos = DISC_UP;                                  flip = Math.PI + Math.PI * p;
-                             wing = -B + 2 * B * fall(t - (10.5 + 0.45 * 1.5)); }
+        if (t < 4.5)       { pos = DISC_UP + (DISC_DOWN - DISC_UP) * (t / 4.5);                flip = 0;                        sigma = 1; }
+        else if (t < 6)    { pos = DISC_DOWN;                                                  flip = Math.PI * (t - 4.5) / 1.5; sigma = 1 - 2 * smooth((t - 4.9) / 1.1); }
+        else if (t < 10.5) { pos = DISC_DOWN + (DISC_UP - DISC_DOWN) * ((t - 6) / 4.5);        flip = Math.PI;                  sigma = -1; }
+        else               { pos = DISC_UP;                                                    flip = Math.PI + Math.PI * (t - 10.5) / 1.5; sigma = -1 + 2 * smooth((t - 11.0) / 1.0); }
       }
+      const spinFrac = animated ? omega(t) / WSPIN : 0;
+      const wing = animated ? sigma * (D_REST - (D_REST - D_FLAT) * spinFrac) : 0.5;
       const theta = animated ? spinAt(t) : s * 0.9;
       flipG.rotation.z = flip;
       discG.rotation.z = 0;
       discG.position.y = DISC_C + pos;
-      bend.uBend.value = wing;                                             // wings fall from pointing up to pointing down on each run
+      bend.uBend.value = wing;                                             // wings always hang from the disc in a cone (never inverted)
       body.rotation.y = theta;
       rings.forEach(r => { r.rotation.y = theta; });
       spin.rotation.z = 0; spin.rotation.y = 0;
