@@ -731,7 +731,7 @@ async function buildGhosts() {
   const spin = new THREE.Group(); spin.add(model);
   const root = new THREE.Group(); root.add(spin);
   const css = n => '#' + n.toString(16).padStart(6, '0');
-  const v = (c, accent) => ({ accent, swatch: [css(c)], colors: { ghost: c } });
+  const sz = (label, price) => ({ accent: '#dfe3d6', swatch: [css(WHITE)], colors: { ghost: WHITE }, label, price });
   const LOOP_S = 12, sm = x => { x = Math.min(1, Math.max(0, x)); return x * x * (3 - 2 * x); };
   // pull to a stretch, hold, release: a spring bounce that dies out
   const pull = (t, t0, hold, rel, amp) => {
@@ -745,17 +745,20 @@ async function buildGhosts() {
     root, spin, mats: ghosts.map(g => g.mat),
     roles: { ghost: ghosts[0].mat },
     swatchShape: 'square',
-    variants: [v(WHITE, '#dfe3d6'), v(GLOW, '#b6ff3a')],
+    variants: [sz('L', 3), sz('M', 2), sz('S', 1)],
+    selected: 0,
     natural: 170, anim: 170, animCentre: 70,
     update(s, animated) {
       // menu icon: just the big ghost, centred and facing front
       if (!animated) { ghosts.forEach((g, i) => { g.m.visible = i === 0; g.m.position.x = 0; g.m.rotation.y = 0; g.u.uS.value = 1; }); spin.rotation.y = 0; return; }
-      ghosts.forEach((g, i) => { g.m.visible = true; g.m.position.x = X[i]; });
-      const t = ((s % LOOP_S) + LOOP_S) % LOOP_S;
+      // all three sizes stand side by side at their true sizes; the chosen one is pulled like a slinky over and over
+      const sel = this.selected ?? 0;
+      const t = ((s % 6) + 6) % 6, amp = [1.0, 1.3, 1.9][sel];
       ghosts.forEach((g, i) => {
-        const st = animated ? 1 + pull(t, TIMES[i], 1.0, 0, AMP[i]) : (i === 0 ? 1.0 : 1.0);
-        g.u.uS.value = Math.max(0.8, st);
-        g.m.rotation.y = animated ? 0.25 * Math.sin(s * 2 * Math.PI / LOOP_S + i) : 0;
+        g.m.visible = true; g.m.position.x = X[i]; g.m.scale.setScalar(1);
+        g.u.uS.value = i === sel ? Math.max(0.8, 1 + pull(t, 0.6, 1.0, 0, amp)) : 1;
+        g.m.rotation.y = i === sel ? 0.2 * Math.sin(s * 2 * Math.PI / 6) : 0;
+        g.mat.opacity = 1; 
       });
       spin.rotation.y = animated ? 0.1 * Math.sin(s * 2 * Math.PI / LOOP_S) : -0.2;
     },
@@ -768,7 +771,7 @@ export const COLOR_NAMES = {
   egg: ['Green', 'Pink', 'Red', 'White'],
   star: ['Red', 'Orange', 'Green'],
   donut: ['Orange', 'Pink', 'Green', 'Brown'],
-  ghosts: ['White', 'Glow green'],
+  ghosts: ['Large', 'Medium', 'Small'],
   katana: ['Orange & Black', 'Black & Orange', 'Orange', 'Black'],
   pass: ['Black & White', 'Black', 'White'],
   bird: ['Yellow', 'Pink', 'Red'],
@@ -810,5 +813,5 @@ export const TOYS = [
     build: buildKatana, duration: 7, price: 12, plateHeight: 132, demoHeight: 110, thumb: { cy: 150, h: 340, t: 0 } },
   { id: 'ghosts', name: 'Slinky Ghosts', short: 'Slinky Ghosts',
     tag: '', blurb: '',
-    build: buildGhosts, duration: 12, price: 8, plateHeight: 124, demoHeight: 110, thumb: { cy: 37, h: 92, t: 0 } },
+    build: buildGhosts, duration: 6, price: 3, plateHeight: 124, demoHeight: 110, thumb: { cy: 37, h: 92, t: 0 } },
 ];

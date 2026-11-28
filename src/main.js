@@ -79,9 +79,10 @@ function renderSwatches(i) {
   items[i].toy.variants.forEach((v, k) => {
     const b = document.createElement('button'); b.className = 'sw ' + (items[i].toy.swatchShape ?? 'square'); b.setAttribute('aria-pressed', k === items[i].variant);
     b.setAttribute('aria-label', `Colour option ${k + 1}`);
-    v.swatch.forEach(c => { const h = document.createElement('i'); h.style.background = c; b.appendChild(h); });
+    if (v.label) { b.classList.add('lbl'); b.innerHTML = `<span>${v.label}</span><small>$${v.price ?? TOYS[i].price}</small>`; }
+    else v.swatch.forEach(c => { const h = document.createElement('i'); h.style.background = c; b.appendChild(h); });
     b.onclick = () => {
-      items[i].variant = k; items[i].glow.set(v.accent);
+      items[i].variant = k; items[i].toy.selected = k; items[i].glow.set(v.accent); showBuy();
       for (const [role, hex] of Object.entries(v.colors)) items[i].targets[role].set(hex);
       [...swEl.children].forEach((e, j) => e.setAttribute('aria-pressed', j === k));
     };
@@ -138,14 +139,15 @@ const qtyOf = TOYS.map(() => 1);
 const cart = {};                                   // one line per toy AND colour: 'toyIndex:variantIndex' -> quantity
 const linesOf = () => Object.entries(cart).filter(([, q]) => q > 0).map(([k, q]) => { const [i, v] = k.split(':').map(Number); return { k, i, v, q }; });
 const money = n => '$' + n;
+const priceOf = (i, v) => items[i].toy.variants[v]?.price ?? TOYS[i].price;   // some products price by size, not colour
 function showBuy() {
   if (focus < 0) return;
   const m = TOYS[focus];
-  document.getElementById('price').innerHTML = `<span class="cur">$</span>${m.price}`;
+  document.getElementById('price').innerHTML = `<span class="cur">$</span>${priceOf(focus, items[focus].variant)}`;
   qval.textContent = qtyOf[focus]; document.getElementById('qminus').disabled = qtyOf[focus] <= 1;
 }
 function showCart() {
-  const L = linesOf(), n = L.reduce((a, l) => a + l.q, 0), total = L.reduce((a, l) => a + l.q * TOYS[l.i].price, 0);
+  const L = linesOf(), n = L.reduce((a, l) => a + l.q, 0), total = L.reduce((a, l) => a + l.q * priceOf(l.i, l.v), 0);
   document.getElementById('cartn').textContent = n; document.getElementById('carttotal').textContent = money(total);
 }
 document.getElementById('qminus').onclick = () => { qtyOf[focus] = Math.max(1, qtyOf[focus] - 1); showBuy(); };
@@ -166,18 +168,19 @@ let payTab = 0;
 const drawer = document.getElementById('drawer'), scrim = document.getElementById('scrim');
 const thumbOf = i => thumbs[i];
 function renderDrawer() {
-  const L = linesOf(), total = L.reduce((a, l) => a + l.q * TOYS[l.i].price, 0);
+  const L = linesOf(), total = L.reduce((a, l) => a + l.q * priceOf(l.i, l.v), 0);
   document.getElementById('dtotal').textContent = money(total);
   const chip = sw => `<span class="chip">${sw.map(c => `<i style="background:${c}"></i>`).join('')}</span>`;
   // one block per product, with a sub-line for every colour of it
   const rows = TOYS.map((m, i) => {
     const subs = L.filter(l => l.i === i); if (!subs.length) return '';
-    const qty = subs.reduce((a, l) => a + l.q, 0);
-    return `<div class="prod"><div class="line head"><img src="${thumbOf(i)}" alt=""><div class="nm">${m.name}<small>${money(m.price)} each</small></div>
-      <div class="pq">&times; ${qty}</div><div class="amt">${money(qty * m.price)}</div></div>
+    const qty = subs.reduce((a, l) => a + l.q, 0), sum = subs.reduce((a, l) => a + l.q * priceOf(i, l.v), 0);
+    const same = subs.every(l => priceOf(i, l.v) === priceOf(i, subs[0].v));
+    return `<div class="prod"><div class="line head"><img src="${thumbOf(i)}" alt=""><div class="nm">${m.name}<small>${same ? money(priceOf(i, subs[0].v)) + ' each' : 'by size'}</small></div>
+      <div class="pq">&times; ${qty}</div><div class="amt">${money(sum)}</div></div>
       ${subs.map(({ k, v, q }) => `<div class="line sub"><div class="nm">${chip(items[i].toy.variants[v].swatch)}${COLOR_NAMES[m.id]?.[v] ?? 'Colour ' + (v + 1)}</div>
         <div class="st"><button data-d="-1" data-k="${k}" aria-label="Less">&minus;</button><output>${q}</output><button data-d="1" data-k="${k}" aria-label="More">+</button></div>
-        <div class="amt">${money(q * m.price)}</div></div>`).join('')}</div>`;
+        <div class="amt">${money(q * priceOf(i, v))}</div></div>`).join('')}</div>`;
   }).join('');
   document.getElementById('lines').innerHTML = rows || '<div class="empty">Your cart is empty.</div>';
   const [id, label] = PAY[payTab];
@@ -229,7 +232,7 @@ async function resetAll() {
   closeToy(); openDrawer(false);
   for (const k of Object.keys(cart)) delete cart[k];
   qtyOf.fill(1); payTab = 0;
-  items.forEach(it => { const v0 = it.toy.variants[0]; it.variant = 0; it.glow.set(v0.accent); for (const [r, hex] of Object.entries(v0.colors)) it.targets[r].set(hex); });
+  items.forEach(it => { const v0 = it.toy.variants[0]; it.variant = 0; it.toy.selected = 0; it.glow.set(v0.accent); for (const [r, hex] of Object.entries(v0.colors)) it.targets[r].set(hex); });
   showCart();
   while (prog > 0) await sleep(60);
   await sleep(250); menu.setDoorOpen(false);
