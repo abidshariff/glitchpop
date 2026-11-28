@@ -534,8 +534,8 @@
  },
  "kt_b0": {
   "file": "kt_b0.bin",
-  "vertices": 5470,
-  "indices": 32796
+  "vertices": 5370,
+  "indices": 32208
  },
  "kt_b1": {
   "file": "kt_b1.bin",

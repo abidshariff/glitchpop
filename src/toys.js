@@ -612,7 +612,13 @@ async function buildKatana() {
   const ORANGE = 0xff7a1a, RED = 0xe5231a, BLACK = 0x17171c;
   const handle = mesh(gh, ORANGE, 0.42), cap = mesh(gc, ORANGE, 0.42);
   const bladeMat = new THREE.MeshStandardMaterial({ color: BLACK, roughness: 0.3, metalness: 0.25, side: THREE.DoubleSide });
-  const blades = gb.map(g => {
+  // the innermost strip is the tip of the sword: taper its last 38 mm to a point (kissaki) instead of a blunt square end
+  const tipGeo = gb[0].clone(); { const P = tipGeo.attributes.position, L = 38; let y0 = 1e9, z0 = 1e9, z1 = -1e9;
+    for (let i = 0; i < P.count; i++) { y0 = Math.min(y0, P.getY(i)); z0 = Math.min(z0, P.getZ(i)); z1 = Math.max(z1, P.getZ(i)); }
+    const zc = (z0 + z1) / 2;
+    for (let i = 0; i < P.count; i++) { const d = (P.getY(i) - y0) / L; if (d < 1) { const k = 0.03 + 0.97 * Math.pow(Math.max(0, d), 0.8); P.setZ(i, zc + (P.getZ(i) - zc) * k); } }
+    tipGeo.computeVertexNormals(); }
+  const blades = [tipGeo, gb[1], gb[2], gb[3]].map(g => {
     const rest = new Float32Array(g.attributes.position.array), restN = new Float32Array(g.attributes.normal.array);
     const geo = g.clone(); geo.attributes.position.setUsage(THREE.DynamicDrawUsage); geo.attributes.normal.setUsage(THREE.DynamicDrawUsage);
     const m = new THREE.Mesh(geo, bladeMat); m.frustumCulled = false;
