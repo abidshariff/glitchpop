@@ -733,7 +733,7 @@ export const TOYS = [
     build: buildEgg, duration: 8, price: 10, plateHeight: 112, demoHeight: 90, thumb: { cy: 25, h: 54, t: 0.5 } },
   { id: 'star', name: 'Spinner Fidget Star', short: 'Fidget Star',
     tag: '', blurb: '',
-    build: buildStar, duration: 12, price: 10, plateHeight: 138, demoHeight: 110, thumb: { cy: 120, h: 262, t: 0 } },
+    build: buildStar, duration: 12, price: 10, plateHeight: 138, demoHeight: 110, thumb: { cy: 146, h: 288, t: 0 } },
   { id: 'donut', name: 'Squishy Spiral Donut', short: 'Spiral Donut',
     tag: '', blurb: '',
     build: buildDonut, duration: 10, price: 5, plateHeight: 120, demoHeight: 110, thumb: { cy: 67, h: 112, t: 1 } },
