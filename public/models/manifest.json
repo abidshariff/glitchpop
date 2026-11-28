@@ -526,5 +526,35 @@
   "file": "pt_inner.bin",
   "vertices": 43192,
   "indices": 259140
+ },
+ "kt_handle": {
+  "file": "kt_handle.bin",
+  "vertices": 84690,
+  "indices": 537846
+ },
+ "kt_b0": {
+  "file": "kt_b0.bin",
+  "vertices": 5470,
+  "indices": 32796
+ },
+ "kt_b1": {
+  "file": "kt_b1.bin",
+  "vertices": 7164,
+  "indices": 44034
+ },
+ "kt_b2": {
+  "file": "kt_b2.bin",
+  "vertices": 2762,
+  "indices": 16572
+ },
+ "kt_b3": {
+  "file": "kt_b3.bin",
+  "vertices": 4976,
+  "indices": 29856
+ },
+ "kt_cap": {
+  "file": "kt_cap.bin",
+  "vertices": 2084,
+  "indices": 12492
  }
 }

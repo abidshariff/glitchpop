@@ -605,12 +605,99 @@ async function buildPass() {
 }
 const PASS_DIR = 1;
 
+async function buildKatana() {
+  // A fidget katana: an orange handle hides a stack of four nested black blade strips. One quick swish throws them all out
+  // at once (the whole blade whips out and bounces), and it can be swished back in again.
+  const [gh, gc, ...gb] = await Promise.all(['kt_handle', 'kt_cap', 'kt_b0', 'kt_b1', 'kt_b2', 'kt_b3'].map(n => loadGeometry(n)));
+  const ORANGE = 0xff7a1a, RED = 0xe5231a, BLACK = 0x17171c;
+  const handle = mesh(gh, ORANGE, 0.42), cap = mesh(gc, ORANGE, 0.42);
+  const bladeMat = new THREE.MeshStandardMaterial({ color: BLACK, roughness: 0.3, metalness: 0.25, side: THREE.DoubleSide });
+  const blades = gb.map(g => {
+    const rest = new Float32Array(g.attributes.position.array), restN = new Float32Array(g.attributes.normal.array);
+    const geo = g.clone(); geo.attributes.position.setUsage(THREE.DynamicDrawUsage); geo.attributes.normal.setUsage(THREE.DynamicDrawUsage);
+    const m = new THREE.Mesh(geo, bladeMat); m.frustumCulled = false;
+    return { m, geo, rest, restN };
+  });
+  // model axis: y runs along the handle. The guard is at y = -89 (blade exits there), the pommel cap at y = +89.
+  const GUARD = -89.3, S = 74;                         // S = how far each segment slides out of the one around it
+  cap.position.y = 91;
+  const model = new THREE.Group(); model.add(handle, cap, ...blades.map(b => b.m));
+  // the sword is held upright (blade end up) and swings forward to the left, so it points left when thrown out
+  const flip = new THREE.Group(); flip.add(model); flip.rotation.set(0, -Math.PI / 2, Math.PI);
+  const swing = new THREE.Group(); swing.add(flip); flip.position.y = 0;              // pivot: the middle of the handle
+  const place = new THREE.Group(); place.add(swing); place.position.set(95, 176, 0);
+  const spin = new THREE.Group(); spin.add(place);
+  const root = new THREE.Group(); root.add(spin);
+  // bend every blade strip along a circular arc past the guard (kap < 0 curves the other way); q[k] is each segment's slide-out 0..1
+  function bend(q, kap) {
+    const straight = Math.abs(kap) < 1e-6, rr = straight ? 0 : 1 / kap;
+    blades.forEach((b, k) => {
+      let off = 0; for (let j = k; j < 4; j++) off += S * q[j];
+      const P = b.geo.attributes.position.array, N = b.geo.attributes.normal.array, R = b.rest, RN = b.restN;
+      for (let i = 0; i < R.length; i += 3) {
+        const y = R[i + 1] - off, d = GUARD - y;
+        let ny = RN[i + 1], nz = RN[i + 2];
+        if (d <= 0 || straight) { P[i] = R[i]; P[i + 1] = y; P[i + 2] = R[i + 2]; }
+        else {
+          const ph = kap * d, c = Math.cos(ph), sn = Math.sin(ph), z0 = R[i + 2];
+          P[i] = R[i]; P[i + 1] = GUARD - rr * sn - z0 * sn; P[i + 2] = rr * (1 - c) + z0 * c;
+          const ny2 = ny * c - nz * sn, nz2 = ny * sn + nz * c; ny = ny2; nz = nz2;
+        }
+        N[i] = RN[i]; N[i + 1] = ny; N[i + 2] = nz;
+      }
+      b.geo.attributes.position.needsUpdate = true; b.geo.attributes.normal.needsUpdate = true;
+    });
+  }
+  const css = n => '#' + n.toString(16).padStart(6, '0');
+  const v = (c, accent) => ({ accent, swatch: [css(c), css(BLACK)], colors: { body: c, cap: c } });
+  const LOOP_S = 10, sm = x => { x = Math.min(1, Math.max(0, x)); return x * x * (3 - 2 * x); };
+  const lerp = (a, b, k) => a + (b - a) * k;
+  // the throw: segments fly out together (tiny stagger), overshoot their stops, and snap home
+  const springOut = tau => (tau <= 0 ? 0 : 1 - Math.exp(-9 * tau) * (Math.cos(26 * tau) + 0.35 * Math.sin(26 * tau)));
+  const T_WIND = 1.2, T_SWISH = 1.75, T_SWISH_END = 2.1, T_BACK = 6.6, T_BACK_END = 7.7;
+  const q = [0, 0, 0, 0];
+  bend(q, 0);
+  return {
+    root, spin, mats: [handle.material, cap.material, bladeMat],
+    roles: { body: handle.material, cap: cap.material },
+    swatchShape: 'wide',
+    variants: [v(ORANGE, '#ff9a4a'), v(RED, '#ff6a4d')],
+    natural: 330, anim: 330, animCentre: 165,
+    update(s, animated) {
+      if (!animated) { q.fill(0.3); bend(q, 0.002); swing.rotation.z = 0.6; spin.rotation.y = 0; place.position.set(30, 150, 0); return; }
+      const t = ((s % LOOP_S) + LOOP_S) % LOOP_S;
+      // swing angle: 0 = sword upright, pi/2 = pointing sideways. Pull back a touch, then a fast swish forward that overshoots
+      let ang;
+      if (t < T_WIND) ang = 0.1 + 0.04 * Math.sin(t * 3);
+      else if (t < T_SWISH) ang = lerp(0.1, -0.32, sm((t - T_WIND) / (T_SWISH - T_WIND)));             // wind up (back)
+      else if (t < T_BACK) { const u = t - T_SWISH, base = lerp(-0.32, Math.PI / 2, Math.min(1, (u / 0.3) ** 2 * (3 - 2 * Math.min(1, u / 0.3)) * 0.35 + Math.min(1, u / 0.3) * 0.65)); ang = u < 0.3 ? base : Math.PI / 2 + 0.16 * Math.exp(-5 * (u - 0.3)) * Math.cos(9 * (u - 0.3)); }
+      else if (t < T_BACK_END) ang = lerp(Math.PI / 2, 0.1, sm((t - T_BACK) / (T_BACK_END - T_BACK)));
+      else ang = 0.1;
+      swing.rotation.z = ang;
+      // segments
+      for (let k = 3; k >= 0; k--) {
+        const tOut = T_SWISH + 0.06 + (3 - k) * 0.035, tIn = T_BACK + 0.12 + k * 0.12;
+        const val = t < tIn ? springOut(t - tOut) : 1 - sm((t - tIn) / 0.55);
+        q[k] = Math.min(1.15, Math.max(0, val));
+      }
+      // blade curvature: it trails behind the swish, whips, then settles into a gentle sag that keeps bobbing
+      const u = t - (T_SWISH + 0.08);
+      let kap = 0.0006;
+      if (t >= T_SWISH && t < T_BACK) kap = 0.0012 + (-0.0052 * Math.exp(-5 * Math.max(0, u)) + 0.0028 * Math.exp(-1.6 * Math.max(0, u)) * Math.sin(9.5 * Math.max(0, u))) * (u > 0 ? 1 : 0);
+      else if (t >= T_BACK && t < T_BACK_END) kap = lerp(0.0012, 0.0006, sm((t - T_BACK) / 1.1));
+      bend(q, kap);
+      spin.rotation.y = 0.12 * Math.sin(s * 2 * Math.PI / LOOP_S);
+    },
+  };
+}
+
 // Names shown in the cart for each colour option (same order as the swatch buttons)
 export const COLOR_NAMES = {
   wand: ['Black & Green', 'Black & White', 'White & Black'],
   egg: ['Green', 'Pink', 'Red', 'White'],
   star: ['Red', 'Orange', 'Green'],
   donut: ['Orange', 'Pink', 'Green', 'Brown'],
+  katana: ['Orange', 'Red'],
   pass: ['Black & White', 'Black', 'White'],
   bird: ['Yellow', 'Pink', 'Red'],
   snake: ['Pink', 'Blue'],
@@ -646,4 +733,7 @@ export const TOYS = [
   { id: 'pass', name: 'Impossible Passthrough', short: 'Passthrough',
     tag: '', blurb: '',
     build: buildPass, duration: 12, price: 5, plateHeight: 126, demoHeight: 110, thumb: { cy: 30, h: 76, t: 0 } },
+  { id: 'katana', name: 'Dragonite Katana', short: 'Katana',
+    tag: '', blurb: '',
+    build: buildKatana, duration: 10, price: 15, plateHeight: 132, demoHeight: 110, thumb: { cy: 150, h: 300, t: 0 } },
 ];
