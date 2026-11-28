@@ -710,12 +710,62 @@ async function buildKatana() {
   };
 }
 
+async function buildGhosts() {
+  // Three slinky ghosts, each printed as one springy spiral. They are pulled up tall, wobble like a spring, and spring back.
+  const geos = await Promise.all(['gh_large', 'gh_mid', 'gh_small'].map(n => loadGeometry(n)));
+  const X = [-52, 8, 52], BASE_H = 6, WHITE = 0xf1f2ee, GLOW = 0xa6f23a;
+  const ghosts = geos.map((g, i) => {
+    const u = { uS: { value: 1 }, uBase: { value: BASE_H } };
+    const mat = new THREE.MeshStandardMaterial({ color: WHITE, roughness: 0.55, metalness: 0, side: THREE.DoubleSide });
+    mat.onBeforeCompile = sh => {
+      Object.assign(sh.uniforms, u);
+      sh.vertexShader = sh.vertexShader.replace('void main() {', 'uniform float uS; uniform float uBase;\nvoid main() {')
+        .replace('#include <begin_vertex>', `#include <begin_vertex>
+          { float h = max(0., position.y - uBase); transformed.y = position.y + h * (uS - 1.0);
+            float k = 1.0 - 0.07 * (uS - 1.0); transformed.x *= mix(1.0, k, smoothstep(0., 40., h)); transformed.z *= mix(1.0, k, smoothstep(0., 40., h)); }`);
+    };
+    const m = new THREE.Mesh(g, mat); m.frustumCulled = false; m.position.x = X[i];
+    return { m, u, mat };
+  });
+  const model = new THREE.Group(); ghosts.forEach(g => model.add(g.m));
+  const spin = new THREE.Group(); spin.add(model);
+  const root = new THREE.Group(); root.add(spin);
+  const css = n => '#' + n.toString(16).padStart(6, '0');
+  const v = (c, accent) => ({ accent, swatch: [css(c)], colors: { ghost: c } });
+  const LOOP_S = 12, sm = x => { x = Math.min(1, Math.max(0, x)); return x * x * (3 - 2 * x); };
+  // pull to a stretch, hold, release: a spring bounce that dies out
+  const pull = (t, t0, hold, rel, amp) => {
+    if (t < t0) return 0;
+    if (t < t0 + hold) return amp * sm((t - t0) / hold);
+    const tau = t - (t0 + hold + rel * 0);
+    return amp * Math.exp(-3.2 * tau) * Math.cos(11 * tau);
+  };
+  const TIMES = [0.8, 4.2, 7.6], AMP = [1.0, 1.15, 1.5];
+  return {
+    root, spin, mats: ghosts.map(g => g.mat),
+    roles: { ghost: ghosts[0].mat },
+    swatchShape: 'square',
+    variants: [v(WHITE, '#dfe3d6'), v(GLOW, '#b6ff3a')],
+    natural: 170, anim: 170, animCentre: 70,
+    update(s, animated) {
+      const t = ((s % LOOP_S) + LOOP_S) % LOOP_S;
+      ghosts.forEach((g, i) => {
+        const st = animated ? 1 + pull(t, TIMES[i], 1.0, 0, AMP[i]) : (i === 0 ? 1.0 : 1.0);
+        g.u.uS.value = Math.max(0.8, st);
+        g.m.rotation.y = animated ? 0.25 * Math.sin(s * 2 * Math.PI / LOOP_S + i) : 0;
+      });
+      spin.rotation.y = animated ? 0.1 * Math.sin(s * 2 * Math.PI / LOOP_S) : -0.2;
+    },
+  };
+}
+
 // Names shown in the cart for each colour option (same order as the swatch buttons)
 export const COLOR_NAMES = {
   wand: ['Black & Green', 'Black & White', 'White & Black'],
   egg: ['Green', 'Pink', 'Red', 'White'],
   star: ['Red', 'Orange', 'Green'],
   donut: ['Orange', 'Pink', 'Green', 'Brown'],
+  ghosts: ['White', 'Glow green'],
   katana: ['Orange & Black', 'Black & Orange', 'Orange', 'Black'],
   pass: ['Black & White', 'Black', 'White'],
   bird: ['Yellow', 'Pink', 'Red'],
@@ -755,4 +805,7 @@ export const TOYS = [
   { id: 'katana', name: 'Dragonite Katana', short: 'Katana',
     tag: '', blurb: '',
     build: buildKatana, duration: 7, price: 12, plateHeight: 132, demoHeight: 110, thumb: { cy: 150, h: 340, t: 0 } },
+  { id: 'ghosts', name: 'Slinky Ghosts', short: 'Slinky Ghosts',
+    tag: '', blurb: '',
+    build: buildGhosts, duration: 12, price: 8, plateHeight: 124, demoHeight: 110, thumb: { cy: 36, h: 84, t: 0 } },
 ];

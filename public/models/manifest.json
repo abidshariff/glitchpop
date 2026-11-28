@@ -556,5 +556,23 @@
   "file": "kt_cap.bin",
   "vertices": 2084,
   "indices": 12492
+ },
+ "gh_large": {
+  "file": "gh_large.bin",
+  "vertices": 38478,
+  "indices": 230880,
+  "height": 74.5999984
+ },
+ "gh_mid": {
+  "file": "gh_mid.bin",
+  "vertices": 33960,
+  "indices": 203760,
+  "height": 62.3664856
+ },
+ "gh_small": {
+  "file": "gh_small.bin",
+  "vertices": 31130,
+  "indices": 186780,
+  "height": 37.3390656
  }
 }
