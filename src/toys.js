@@ -747,18 +747,17 @@ async function buildGhosts() {
     swatchShape: 'square',
     variants: [sz('L', 3), sz('M', 2), sz('S', 1)],
     selected: 0,
-    natural: 170, anim: 170, animCentre: 70,
+    natural: 190, anim: 190, animCentre: 80,
     update(s, animated) {
       // menu icon: just the big ghost, centred and facing front
       if (!animated) { ghosts.forEach((g, i) => { g.m.visible = i === 0; g.m.position.x = 0; g.m.rotation.y = 0; g.u.uS.value = 1; }); spin.rotation.y = 0; return; }
-      // all three sizes stand side by side at their true sizes; the chosen one is pulled like a slinky over and over
+      // one ghost at a time: the chosen size (Large by default), at its true size relative to the others, pulled like a slinky
       const sel = this.selected ?? 0;
-      const t = ((s % 6) + 6) % 6, amp = [1.0, 1.3, 1.9][sel];
+      const t = ((s % 6) + 6) % 6, amp = [0.95, 1.1, 1.5][sel];
       ghosts.forEach((g, i) => {
-        g.m.visible = true; g.m.position.x = X[i]; g.m.scale.setScalar(1);
+        g.m.visible = i === sel; g.m.position.x = 0; g.m.scale.setScalar([1.15, 0.97, 0.58][i]);
         g.u.uS.value = i === sel ? Math.max(0.8, 1 + pull(t, 0.6, 1.0, 0, amp)) : 1;
-        g.m.rotation.y = i === sel ? 0.2 * Math.sin(s * 2 * Math.PI / 6) : 0;
-        g.mat.opacity = 1; 
+        g.m.rotation.y = 0.2 * Math.sin(s * 2 * Math.PI / 6);
       });
       spin.rotation.y = animated ? 0.1 * Math.sin(s * 2 * Math.PI / LOOP_S) : -0.2;
     },
