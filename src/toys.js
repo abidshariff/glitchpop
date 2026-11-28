@@ -748,6 +748,9 @@ async function buildGhosts() {
     variants: [v(WHITE, '#dfe3d6'), v(GLOW, '#b6ff3a')],
     natural: 170, anim: 170, animCentre: 70,
     update(s, animated) {
+      // menu icon: just the big ghost, centred and facing front
+      if (!animated) { ghosts.forEach((g, i) => { g.m.visible = i === 0; g.m.position.x = 0; g.m.rotation.y = 0; g.u.uS.value = 1; }); spin.rotation.y = 0; return; }
+      ghosts.forEach((g, i) => { g.m.visible = true; g.m.position.x = X[i]; });
       const t = ((s % LOOP_S) + LOOP_S) % LOOP_S;
       ghosts.forEach((g, i) => {
         const st = animated ? 1 + pull(t, TIMES[i], 1.0, 0, AMP[i]) : (i === 0 ? 1.0 : 1.0);
@@ -807,5 +810,5 @@ export const TOYS = [
     build: buildKatana, duration: 7, price: 12, plateHeight: 132, demoHeight: 110, thumb: { cy: 150, h: 340, t: 0 } },
   { id: 'ghosts', name: 'Slinky Ghosts', short: 'Slinky Ghosts',
     tag: '', blurb: '',
-    build: buildGhosts, duration: 12, price: 8, plateHeight: 124, demoHeight: 110, thumb: { cy: 36, h: 84, t: 0 } },
+    build: buildGhosts, duration: 12, price: 8, plateHeight: 124, demoHeight: 110, thumb: { cy: 37, h: 92, t: 0 } },
 ];
